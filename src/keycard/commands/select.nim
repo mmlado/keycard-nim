@@ -47,8 +47,6 @@ proc select*(card: var Keycard): SelectResult =
   if resp.sw != SwSuccess:
     return SelectResult(success: false, error: SelectFailed, sw: resp.sw)
   
-  card.selected = true
-  
   # Parse the response and store in card state
   let appInfo = parseApplicationInfo(resp.data)
   card.publicKey = appInfo.publicKey

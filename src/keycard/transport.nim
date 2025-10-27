@@ -2,7 +2,7 @@ import pcsc_shim as pcs
 import pcsc/util as putil
 
 import apdu
-from util import swHex
+import constants
 
 export ApduResponse
 
@@ -70,7 +70,7 @@ proc send*(t: Transport; apdu: Apdu): TransportResult[ApduResponse] =
 
 proc send*(t: Transport;
            ins: byte;
-           cla: byte = 0x00;
+           cla: byte = ClaProprietary;
            p1: byte = 0x00;
            p2: byte = 0x00;
            data: openArray[byte] = []): TransportResult[ApduResponse] =
