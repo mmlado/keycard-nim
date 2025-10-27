@@ -111,7 +111,7 @@ nimble clean
 | Command | Status | Description |
 |---------|--------|-------------|
 | SELECT | ✅ | Select Keycard applet, parse application info |
-| INIT | ❌ | Initialize card with PIN, PUK, and pairing secret |
+| INIT | ✅ | Initialize card with PIN, PUK, and pairing secret |
 | IDENT | ❌ | Send identity challenge to card |
 | OPEN SECURE CHANNEL | ❌ | Establish encrypted communication |
 | MUTUALLY AUTHENTICATE | ❌ | Mutual authentication between host and card |
@@ -131,7 +131,7 @@ nimble clean
 | EXPORT KEY | ❌ | Export public key or key pair |
 | STORE DATA | ❌ | Store data in card slots |
 | GET DATA | ❌ | Retrieve stored data |
-| FACTORY RESET | ❌ | Reset card to factory state |
+| FACTORY RESET | ✅ | Reset card to factory state |
 
 ### Secure Channel
 - ❌ AES encryption/decryption

@@ -13,6 +13,8 @@ srcDir        = "src"
 
 requires "nim >= 1.6.14"
 requires "pcsc"
+requires "nimcrypto"
+requires "https://github.com/status-im/nim-secp256k1"
 
 task test, "Run unit tests with mock PC/SC":
   exec "nim r -d:mockPcsc --path:src tests/transport_test.nim"
@@ -28,4 +30,4 @@ task clean, "Clean build artifacts":
   # Remove compiled binaries
   exec "rm -f tests/transport_test"
   exec "rm -f tests/select_test"
-  exec "rm -f examples/select_example"
+  exec "rm -f examples/example"
