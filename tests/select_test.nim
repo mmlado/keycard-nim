@@ -36,7 +36,7 @@ suite "SELECT command":
       
       # Verify result
       check result.success
-      check card.selected
+      check card.publicKey.len == 65
 
     test "select parses pre-init response (public key only)":
       let t = newTransport()

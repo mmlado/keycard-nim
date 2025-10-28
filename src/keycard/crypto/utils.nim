@@ -162,21 +162,89 @@ proc generateRandomBytes*(n: int): seq[byte] =
 proc generatePairingToken*(secret: string): seq[byte] =
   ## Generate a 32-byte pairing token from a secret string using PBKDF2
   ## This matches the standard implementation across all Keycard SDKs
-  ## 
+  ##
   ## Uses:
   ## - PBKDF2-HMAC-SHA256
   ## - Salt: "Keycard Pairing Password Salt"
   ## - Iterations: 50000
   ## - Output length: 32 bytes
-  
+
   const salt = "Keycard Pairing Password Salt"
   const iterations = 50000
   const dklen = 32
-  
+
   var ctx: HMAC[sha256]
   var output: array[32, byte]
-  
+
   # PBKDF2 using SHA256
   discard pbkdf2(ctx, secret, salt, iterations, output)
-  
+
   result = @output
+
+proc sha512Hash*(data: seq[byte]): seq[byte] =
+  ## Calculate SHA-512 hash of data
+  ## Returns 64 bytes
+  var ctx: sha512
+  ctx.init()
+  ctx.update(data)
+  let digest = ctx.finish()
+  result = @(digest.data)
+
+proc aesCbcMac*(key: seq[byte], data: seq[byte], padding: bool = false): seq[byte] =
+  ## Calculate AES CBC-MAC (16 bytes)
+  ## Uses zero IV and processes data in CBC mode
+  ## Returns the last block of the CBC encryption
+  ##
+  ## Args:
+  ##   key: MAC key (32 bytes)
+  ##   data: Data to MAC
+  ##   padding: Whether to apply ISO/IEC 9797-1 Method 2 padding (default: false)
+
+  var inputData = data
+  
+  # Optionally add ISO/IEC 9797-1 Method 2 padding
+  if padding:
+    inputData.add(0x80'u8)
+    # Pad to block size (16 bytes)
+    while inputData.len mod 16 != 0:
+      inputData.add(0x00'u8)
+
+  # Setup AES context with zero IV
+  var ctx: CBC[aes256]
+  var keyArray: array[32, byte]
+  var ivArray: array[16, byte]  # Zero IV
+
+  # Copy key to fixed-size array
+  for i in 0..<min(32, key.len):
+    keyArray[i] = key[i]
+
+  # Initialize with zero IV
+  for i in 0..<16:
+    ivArray[i] = 0
+
+  # Initialize CBC mode
+  ctx.init(keyArray, ivArray)
+
+  # Encrypt
+  var output = newSeq[byte](inputData.len)
+  ctx.encrypt(inputData, output)
+  ctx.clear()
+
+  # Return last 16 bytes (last block)
+  result = output[^16..^1]
+
+proc deriveSessionKeys*(sharedSecret: seq[byte], pairingKey: seq[byte], salt: seq[byte]): tuple[encKey: seq[byte], macKey: seq[byte]] =
+  ## Derive encryption and MAC keys for secure channel
+  ## Concatenates sharedSecret + pairingKey + salt and applies SHA-512
+  ## First 32 bytes = encryption key
+  ## Last 32 bytes = MAC key
+
+  var combined: seq[byte] = @[]
+  combined.add(sharedSecret)
+  combined.add(pairingKey)
+  combined.add(salt)
+
+  let hash = sha512Hash(combined)
+
+  result.encKey = hash[0..<32]
+  result.macKey = hash[32..<64]

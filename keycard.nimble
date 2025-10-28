@@ -19,7 +19,12 @@ requires "https://github.com/status-im/nim-secp256k1"
 task test, "Run unit tests with mock PC/SC":
   exec "nim r -d:mockPcsc --path:src tests/transport_test.nim"
   exec "nim r -d:mockPcsc --path:src tests/select_test.nim"
-
+  exec "nim r -d:mockPcsc --path:src tests/reset_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/init_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/pair_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/open_secure_channel_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/mutually_authenticate_test.nim"
+  
 task example, "Run example":
   exec "nim c -r --path:src example/example.nim"
 

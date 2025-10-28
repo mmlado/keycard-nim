@@ -19,7 +19,7 @@ type
     data*: seq[byte]
 
 proc apdu*(ins: byte;
-           cla: byte = 0x00;
+           cla: byte = 0x80;
            p1: byte = 0x00;
            p2: byte = 0x00;
            data: openArray[byte] = []): Apdu =

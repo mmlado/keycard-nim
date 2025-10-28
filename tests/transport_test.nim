@@ -59,7 +59,7 @@ suite "Transport with mocked PC/SC":
       # Verify correct APDU was sent
       let tx = tr.mockCard().mockTxLog()
       check tx.len == 1
-      check tx[0] == @[byte 0x00, 0xA4, 0x04, 0x00, 0x02, 0xA0, 0x00]
+      check tx[0] == @[byte 0x80, 0xA4, 0x04, 0x00, 0x02, 0xA0, 0x00]
 
     test "send with parameters (default values)":
       let tr = newTransport()
@@ -77,7 +77,7 @@ suite "Transport with mocked PC/SC":
       check r.value.sw == 0x9000'u16
       
       let tx = tr.mockCard().mockTxLog()
-      check tx[0] == @[byte 0x00, 0xA4, 0x00, 0x00]
+      check tx[0] == @[byte 0x80, 0xA4, 0x00, 0x00]
 
     test "send with custom cla and parameters":
       let tr = newTransport()

@@ -8,11 +8,19 @@ export transport
 export application_info
 
 type
+  SecureChannel* = object
+    open*: bool
+    encryptionKey*: seq[byte]
+    macKey*: seq[byte]
+    iv*: seq[byte]
+    pairingIndex*: byte
+
   Keycard* = object
     transport*: Transport
     publicKey*: seq[byte]
     selected*: bool
     appInfo*: ApplicationInfo
+    secureChannel*: SecureChannel
 
 proc newKeycard*(transport: Transport): Keycard =
   ## Create a new Keycard interface with the given transport
@@ -41,3 +49,7 @@ proc hasSecureChannel*(card: Keycard): bool =
 proc version*(card: Keycard): tuple[major, minor: byte] =
   ## Get application version (only valid after select)
   card.appInfo.appVersion
+
+proc isSecureChannelOpen*(card: Keycard): bool =
+  ## Check if secure channel is currently open
+  card.secureChannel.open

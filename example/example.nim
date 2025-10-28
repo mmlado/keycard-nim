@@ -1,5 +1,5 @@
 ## Example: Keycard operations
-## Usage: nim c -r examples/example.nim
+## Usage: nim c -r example/example.nim
 
 import std/strutils
 import pcsc/util as putil
@@ -8,8 +8,14 @@ import keycard/keycard
 import keycard/commands/init
 import keycard/commands/select
 import keycard/commands/reset
+import keycard/commands/pair
+import keycard/commands/open_secure_channel
+import keycard/commands/mutually_authenticate
+import keycard/secure_apdu
+import keycard/crypto/utils
+import keycard/util
 
-const 
+const
   PIN = "123456"
   PUK = "123456123456"
   PAIRING_PASSWORD = "KeycardTest"
@@ -19,9 +25,10 @@ proc selectCard(card: var Keycard): bool =
   ## Returns true on success, false on failure
   echo "Selecting card..."
   let result = card.select()
-  
+
   if result.success:
     echo result.info
+    echo "Card public key: ", result.info.publicKey.prettyHex()
     return true
   else:
     echo "SELECT failed!"
@@ -77,26 +84,72 @@ proc main() =
     if not card.selectCard():
       return
   # Initialize the card
-
   echo "\nInitializing card..."
+
   let initResult = card.init(
     pin = PIN,
     puk = PUK,
     pairingSecret = PAIRING_PASSWORD
   )
-  
+
   if not initResult.success:
     echo "Initialization failed: ", initResult.error
     if initResult.sw != 0:
       echo "  Status word: 0x", initResult.sw.toHex(4)
     return
-  
+
   echo "Card initialized successfully\n"
-  
+
   # Select again to see initialized state
   if not card.selectCard():
     return
-  
+
+  # Check if card supports secure channel
+  if not card.hasSecureChannel():
+    echo "\nCard does not support secure channel!"
+    echo "All operations completed successfully!"
+    return
+
+  echo "\nCard supports secure channel"
+
+  # Pair with the card (two-step mutual authentication)
+  echo "\nPairing with card..."
+
+  let pairResult = card.pair(PAIRING_PASSWORD)
+
+  if not pairResult.success:
+    echo "Failed to pair: ", pairResult.error
+    if pairResult.sw != 0:
+      echo "  Status word: 0x", pairResult.sw.toHex(4)
+    return
+
+  echo "Pairing successful!"
+  echo "Assigned pairing index: ", pairResult.pairingIndex
+  echo "Pairing key: ", pairResult.pairingKey.prettyHex()
+  echo "Salt: ", pairResult.salt.prettyHex()
+
+  # Open secure channel
+  echo "\nOpening secure channel..."
+  echo "Using pairing index: ", pairResult.pairingIndex
+
+  let openResult = card.openSecureChannel(pairResult.pairingIndex, pairResult.pairingKey)
+
+  if not openResult.success:
+    echo "Failed to open secure channel: ", openResult.error
+    if openResult.sw != 0:
+      echo "  Status word: 0x", openResult.sw.toHex(4)
+    return
+
+  echo "Secure channel opened successfully!"
+  echo "Salt: ", openResult.salt.prettyHex()
+  echo "IV: ", openResult.iv.prettyHex()
+  echo "Encryption key: ", card.secureChannel.encryptionKey.prettyHex()
+  echo "MAC key: ", card.secureChannel.macKey.prettyHex()
+
+  echo "\n  Secure channel is now open!"
+  echo "  All subsequent commands can be encrypted"
+  echo "  Channel remains open until card is deselected or reset"
+
   echo "\nAll operations completed successfully!"
 
 when isMainModule:

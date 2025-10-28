@@ -21,7 +21,7 @@ type
 
 proc reset*(card: var Keycard): ResetResult =
   ## Send Reset command to the selected Keycard applet
-  if not card.publicKey.len == 0:
+  if card.publicKey.len == 0:
     return ResetResult(success: false, error: ResetCardNotSelected)
 
   let transportResult = card.transport.send(

@@ -47,30 +47,6 @@ if result.success:
   echo "Secure channel: ", card.hasSecureChannel()
 ```
 
-## Project Structure
-
-```
-src/keycard/
-├── keycard.nim           # Main Keycard type and high-level API
-├── transport.nim         # Low-level APDU communication
-├── apdu.nim             # APDU construction utilities
-├── constants.nim        # Protocol constants and enums
-├── tlv.nim              # BER-TLV parsing
-├── util.nim             # Utility functions
-├── pcsc_shim.nim        # Mock/real PC/SC abstraction
-├── commands/            # Command implementations
-│   └── select.nim       # SELECT command
-└── types/
-    └── application_info.nim  # Application info parsing
-
-tests/
-├── transport_test.nim   # Transport layer tests
-└── select_test.nim      # SELECT command tests
-
-example/
-└── example.nim          # Interactive CLI example
-```
-
 ## Testing
 
 Run tests with mock PC/SC (no hardware required):
@@ -113,9 +89,9 @@ nimble clean
 | SELECT | ✅ | Select Keycard applet, parse application info |
 | INIT | ✅ | Initialize card with PIN, PUK, and pairing secret |
 | IDENT | ❌ | Send identity challenge to card |
-| OPEN SECURE CHANNEL | ❌ | Establish encrypted communication |
-| MUTUALLY AUTHENTICATE | ❌ | Mutual authentication between host and card |
-| PAIR | ❌ | Pair with card using ECDH |
+| OPEN SECURE CHANNEL | ✅ | Establish encrypted communication |
+| MUTUALLY AUTHENTICATE | ✅ | Mutual authentication between host and card |
+| PAIR | ✅ | Pair with card using ECDH |
 | UNPAIR | ❌ | Remove pairing slot |
 | GET STATUS | ❌ | Retrieve card status (PIN retries, etc.) |
 | VERIFY PIN | ❌ | Verify user PIN |
@@ -132,17 +108,6 @@ nimble clean
 | STORE DATA | ❌ | Store data in card slots |
 | GET DATA | ❌ | Retrieve stored data |
 | FACTORY RESET | ✅ | Reset card to factory state |
-
-### Secure Channel
-- ❌ AES encryption/decryption
-- ❌ MAC generation and verification
-- ❌ Session management
-- ❌ ECDH key agreement
-
-### Cryptography
-- ❌ ECDSA signing
-- ❌ BIP32 key derivation
-- ❌ BIP39 mnemonic handling
 
 ## Design Philosophy
 
