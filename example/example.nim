@@ -12,6 +12,7 @@ import keycard/commands/pair
 import keycard/commands/open_secure_channel
 import keycard/commands/mutually_authenticate
 import keycard/commands/verify_pin
+import keycard/commands/unpair
 import keycard/secure_apdu
 import keycard/crypto/utils
 import keycard/util
@@ -176,6 +177,35 @@ proc main() =
       echo "  Secure APDU encryption/MAC error"
     of VerifyPinTransportError:
       echo "  Transport/connection error"
+    else:
+      discard
+
+    return
+
+  # Unpair the pairing slot
+  echo "\nUnpairing slot ", pairResult.pairingIndex, "..."
+
+  let unpairResult = card.unpair(pairResult.pairingIndex)
+
+  if unpairResult.success:
+    echo "Unpaired successfully!"
+    echo "Pairing slot ", pairResult.pairingIndex, " is now free"
+  else:
+    echo "Unpair failed: ", unpairResult.error
+    if unpairResult.sw != 0:
+      echo "  Status word: 0x", unpairResult.sw.toHex(4)
+
+    case unpairResult.error
+    of UnpairSecurityConditionsNotMet:
+      echo "  (Security conditions not met)"
+    of UnpairInvalidIndex:
+      echo "  (Invalid pairing index)"
+    of UnpairSecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of UnpairChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of UnpairTransportError:
+      echo "  (Transport/connection error)"
     else:
       discard
 

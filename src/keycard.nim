@@ -22,6 +22,7 @@ import keycard/commands/pair
 import keycard/commands/open_secure_channel
 import keycard/commands/mutually_authenticate
 import keycard/commands/verify_pin
+import keycard/commands/unpair
 import keycard/secure_apdu
 
 export keycard
@@ -36,4 +37,5 @@ export pair
 export open_secure_channel
 export mutually_authenticate
 export verify_pin
+export unpair
 export secure_apdu

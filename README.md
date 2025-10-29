@@ -69,7 +69,7 @@ nimble clean
 | OPEN SECURE CHANNEL | ✅ | Establish encrypted communication |
 | MUTUALLY AUTHENTICATE | ✅ | Mutual authentication between host and card |
 | PAIR | ✅ | Pair with card using ECDH |
-| UNPAIR | ❌ | Remove pairing slot |
+| UNPAIR | ✅ | Remove pairing slot |
 | GET STATUS | ❌ | Retrieve card status (PIN retries, etc.) |
 | VERIFY PIN | ✅ | Verify user PIN |
 | CHANGE PIN | ❌ | Change user PIN |
