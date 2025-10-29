@@ -65,7 +65,7 @@ nimble clean
 |---------|--------|-------------|
 | SELECT | ✅ | Select Keycard applet, parse application info |
 | INIT | ✅ | Initialize card with PIN, PUK, and pairing secret |
-| IDENT | ❌ | Send identity challenge to card |
+| IDENT | ✅ | Send identity challenge to card |
 | OPEN SECURE CHANNEL | ✅ | Establish encrypted communication |
 | MUTUALLY AUTHENTICATE | ✅ | Mutual authentication between host and card |
 | PAIR | ✅ | Pair with card using ECDH |

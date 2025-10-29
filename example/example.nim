@@ -7,6 +7,7 @@ import keycard/transport
 import keycard/keycard
 import keycard/commands/init
 import keycard/commands/select
+import keycard/commands/ident
 import keycard/commands/reset
 import keycard/commands/pair
 import keycard/commands/open_secure_channel
@@ -69,6 +70,21 @@ proc main() =
   # Initial SELECT
   if not card.selectCard():
     return
+  
+  # Identify the card (before init/pairing)
+  echo "\nIdentifying card..."
+  let identResult = card.ident()
+
+  if identResult.success:
+    echo "Card identified successfully!"
+    echo "Public key: ", identResult.publicKey.prettyHex()
+    echo "Certificate length: ", identResult.certificate.len, " bytes"
+    echo "Signature length: ", identResult.signature.len, " bytes"
+  else:
+    echo "Card identification failed: ", identResult.error
+    if identResult.sw != 0:
+      echo "  Status word: 0x", identResult.sw.toHex(4)
+    # Continue anyway - identification is optional
   
   # Reset if already initialized
   if  card.isInitialized():

@@ -16,6 +16,7 @@ import keycard/apdu
 import keycard/constants
 import keycard/types/application_info
 import keycard/commands/select
+import keycard/commands/ident
 import keycard/commands/init
 import keycard/commands/reset
 import keycard/commands/pair
@@ -31,6 +32,7 @@ export apdu
 export constants
 export application_info
 export select
+export ident
 export init
 export reset
 export pair
