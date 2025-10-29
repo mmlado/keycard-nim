@@ -2,14 +2,6 @@
 
 A Nim SDK to interact with the [Status Keycard](https://keycard.tech) - a hardware wallet implementation on JavaCard.
 
-## Features
-
-- 🔒 Secure communication with Keycard hardware wallets
-- 🧪 Mock PC/SC implementation for testing without hardware
-- ✅ Idiomatic Nim with Result types instead of exceptions
-- 🎯 Type-safe APDU construction
-- 📦 Modular architecture with clean separation of concerns
-
 ## Installation
 
 ```bash
@@ -69,21 +61,6 @@ nimble clean
 
 ## Implementation Status
 
-### Core Infrastructure
-- ✅ Transport layer with Result types
-- ✅ APDU construction with default parameters
-- ✅ Mock PC/SC for testing
-- ✅ BER-TLV parser
-- ✅ Application info structure
-
-### Commands
-
-#### Status Legend
-- ✅ Implemented and tested
-- 🚧 In progress
-- ⏳ Planned
-- ❌ Not started
-
 | Command | Status | Description |
 |---------|--------|-------------|
 | SELECT | ✅ | Select Keycard applet, parse application info |
@@ -94,7 +71,7 @@ nimble clean
 | PAIR | ✅ | Pair with card using ECDH |
 | UNPAIR | ❌ | Remove pairing slot |
 | GET STATUS | ❌ | Retrieve card status (PIN retries, etc.) |
-| VERIFY PIN | ❌ | Verify user PIN |
+| VERIFY PIN | ✅ | Verify user PIN |
 | CHANGE PIN | ❌ | Change user PIN |
 | UNBLOCK PIN | ❌ | Unblock PIN using PUK |
 | LOAD KEY | ❌ | Load cryptographic key to card |
@@ -108,19 +85,6 @@ nimble clean
 | STORE DATA | ❌ | Store data in card slots |
 | GET DATA | ❌ | Retrieve stored data |
 | FACTORY RESET | ✅ | Reset card to factory state |
-
-## Design Philosophy
-
-### Idiomatic Nim
-- **Result types** instead of exceptions for expected errors
-- **Simple data types** with public fields instead of getters/setters
-- **Procedural style** with clear, explicit code
-- **Compile-time safety** where possible
-
-### Architecture
-- **Transport layer**: Handles low-level PC/SC communication
-- **Command layer**: Implements protocol commands, interprets status words
-- **Keycard layer**: Manages state, provides high-level API
 
 ## Contributing
 

@@ -1,5 +1,12 @@
 ## High-level Keycard interface
 ## Manages card state and provides command interface
+##
+## To use commands, import them explicitly:
+##   import keycard/commands/init
+##   import keycard/commands/select
+##   import keycard/commands/pair
+##   import keycard/commands/verify_pin
+##   ... etc
 
 import transport
 import types/application_info

@@ -11,6 +11,7 @@ import keycard/commands/reset
 import keycard/commands/pair
 import keycard/commands/open_secure_channel
 import keycard/commands/mutually_authenticate
+import keycard/commands/verify_pin
 import keycard/secure_apdu
 import keycard/crypto/utils
 import keycard/util
@@ -149,6 +150,36 @@ proc main() =
   echo "\n  Secure channel is now open!"
   echo "  All subsequent commands can be encrypted"
   echo "  Channel remains open until card is deselected or reset"
+
+  # Verify PIN
+  echo "\nVerifying PIN..."
+
+  let verifyResult = card.verifyPin(PIN)
+
+  if verifyResult.success:
+    echo "PIN verified successfully!"
+    echo "PIN is now authenticated for this session"
+    echo "Session remains authenticated until card is deselected or reset"
+  else:
+    echo "PIN verification failed: ", verifyResult.error
+    if verifyResult.sw != 0:
+      echo "  Status word: 0x", verifyResult.sw.toHex(4)
+
+    case verifyResult.error
+    of VerifyPinBlocked:
+      echo "  PIN is BLOCKED! Use PUK to unblock"
+    of VerifyPinIncorrect:
+      echo "  Wrong PIN! Retries remaining: ", verifyResult.retriesRemaining
+    of VerifyPinChannelNotOpen:
+      echo "  Secure channel is not open"
+    of VerifyPinSecureApduError:
+      echo "  Secure APDU encryption/MAC error"
+    of VerifyPinTransportError:
+      echo "  Transport/connection error"
+    else:
+      discard
+
+    return
 
   echo "\nAll operations completed successfully!"
 
