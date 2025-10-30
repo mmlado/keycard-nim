@@ -27,6 +27,9 @@ task test, "Run unit tests with mock PC/SC":
   exec "nim r -d:mockPcsc --path:src tests/verify_pin_test.nim"
   exec "nim r -d:mockPcsc --path:src tests/unpair_test.nim"
   exec "nim r -d:mockPcsc --path:src tests/ident_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/get_status_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/store_data_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/get_data_test.nim"
 
 task example, "Run example":
   exec "nim c -r --path:src example/example.nim"

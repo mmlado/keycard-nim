@@ -70,7 +70,7 @@ nimble clean
 | MUTUALLY AUTHENTICATE | ✅ | Mutual authentication between host and card |
 | PAIR | ✅ | Pair with card using ECDH |
 | UNPAIR | ✅ | Remove pairing slot |
-| GET STATUS | ❌ | Retrieve card status (PIN retries, etc.) |
+| GET STATUS | ✅ | Retrieve card status (PIN retries, etc.) |
 | VERIFY PIN | ✅ | Verify user PIN |
 | CHANGE PIN | ❌ | Change user PIN |
 | UNBLOCK PIN | ❌ | Unblock PIN using PUK |
@@ -82,8 +82,8 @@ nimble clean
 | SIGN | ❌ | Sign data with loaded key |
 | SET PINLESS PATH | ❌ | Set path for PIN-less signing |
 | EXPORT KEY | ❌ | Export public key or key pair |
-| STORE DATA | ❌ | Store data in card slots |
-| GET DATA | ❌ | Retrieve stored data |
+| STORE DATA | ✅ | Store data in card slots |
+| GET DATA | ✅ | Retrieve stored data |
 | FACTORY RESET | ✅ | Reset card to factory state |
 
 ## Contributing
