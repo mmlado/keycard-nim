@@ -72,8 +72,8 @@ nimble clean
 | UNPAIR | ✅ | Remove pairing slot |
 | GET STATUS | ✅ | Retrieve card status (PIN retries, etc.) |
 | VERIFY PIN | ✅ | Verify user PIN |
-| CHANGE PIN | ❌ | Change user PIN |
-| UNBLOCK PIN | ❌ | Unblock PIN using PUK |
+| CHANGE PIN | ✅ | Change user PIN |
+| UNBLOCK PIN | ✅ | Unblock PIN using PUK |
 | LOAD KEY | ❌ | Load cryptographic key to card |
 | DERIVE KEY | ❌ | Derive key using BIP32 path |
 | GENERATE MNEMONIC | ❌ | Generate BIP39 mnemonic on card |

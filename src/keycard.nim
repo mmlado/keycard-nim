@@ -16,6 +16,7 @@ import keycard/apdu
 import keycard/constants
 import keycard/types/application_info
 import keycard/commands/select
+import keycard/commands/change_pin
 import keycard/commands/get_data
 import keycard/commands/get_status
 import keycard/commands/ident
@@ -25,6 +26,7 @@ import keycard/commands/pair
 import keycard/commands/open_secure_channel
 import keycard/commands/mutually_authenticate
 import keycard/commands/verify_pin
+import keycard/commands/unblock_pin
 import keycard/commands/unpair
 import keycard/commands/store_data
 import keycard/secure_apdu
@@ -35,6 +37,7 @@ export apdu
 export constants
 export application_info
 export select
+export change_pin
 export get_data
 export get_status
 export ident
@@ -44,6 +47,7 @@ export pair
 export open_secure_channel
 export mutually_authenticate
 export verify_pin
+export unblock_pin
 export unpair
 export store_data
 export secure_apdu

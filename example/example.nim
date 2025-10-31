@@ -5,6 +5,7 @@ import std/strutils
 import pcsc/util as putil
 import keycard/transport
 import keycard/keycard
+import keycard/commands/change_pin
 import keycard/commands/init
 import keycard/commands/select
 import keycard/commands/ident
@@ -14,6 +15,7 @@ import keycard/commands/pair
 import keycard/commands/open_secure_channel
 import keycard/commands/mutually_authenticate
 import keycard/commands/verify_pin
+import keycard/commands/unblock_pin
 import keycard/commands/unpair
 import keycard/commands/store_data
 import keycard/commands/get_data
@@ -23,7 +25,8 @@ import keycard/util
 
 const
   PIN = "123456"
-  PUK = "123456123456"
+  NEW_PIN = "654321"
+  PUK = "234567890123"
   PAIRING_PASSWORD = "KeycardTest"
 
 proc selectCard(card: var Keycard): bool =
@@ -227,10 +230,98 @@ proc main() =
       echo "  Transport/connection error"
     else:
       discard
+    return
+  
+  # Change PIN (demonstrate CHANGE PIN command)
+  echo "\nChanging PIN from ", PIN, " to ", NEW_PIN, "..."
 
+  # Convert PIN string to bytes
+  var newPinBytes: seq[byte] = @[]
+  for c in NEW_PIN:
+    newPinBytes.add(byte(c))
+
+  let changePinResult = card.changePin(UserPin, newPinBytes)
+
+  if changePinResult.success:
+    echo "PIN changed successfully!"
+    echo "New PIN is now authenticated for this session"
+    echo "Note: In production, you'd use the new PIN for future sessions"
+  else:
+    echo "Change PIN failed: ", changePinResult.error
+    if changePinResult.sw != 0:
+      echo "  Status word: 0x", changePinResult.sw.toHex(4)
+
+    case changePinResult.error
+    of ChangePinInvalidFormat:
+      echo "  (Invalid PIN format - must be 6 digits)"
+    of ChangePinInvalidP1:
+      echo "  (Invalid PIN type)"
+    of ChangePinCapabilityNotSupported:
+      echo "  (Card does not support credentials management)"
+    of ChangePinConditionsNotMet:
+      echo "  (Conditions not met - PIN must be verified)"
+    of ChangePinChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of ChangePinSecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of ChangePinTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+    # Continue anyway
+
+  # Demonstrate PIN blocking and unblocking
+  echo "\nDemonstrating PIN blocking by attempting to verify with old PIN..."
+  echo "Attempting to verify with old PIN (", PIN, ") - should fail 3 times to block PIN"
+
+  # Try old PIN 3 times to block it
+  for i in 1..3:
+    echo "\nAttempt ", i, " with old PIN..."
+    let blockResult = card.verifyPin("111111")
+    echo blockResult.success
+    if not blockResult.success:
+      if blockResult.error == VerifyPinIncorrect:
+        echo "  Wrong PIN! Retries remaining: ", blockResult.retriesRemaining
+      elif blockResult.error == VerifyPinBlocked:
+        echo "  PIN is now BLOCKED!"
+        break
+      else:
+        echo "  Verify failed: ", blockResult.error
+
+  # Now unblock with PUK
+  echo "\nUnblocking PIN with PUK and setting it back to original..."
+  let unblockResult = card.unblockPin(PUK, PIN)
+
+  if unblockResult.success:
+    echo "PIN unblocked successfully!"
+    echo "PIN has been reset to ", PIN, " and is now authenticated for this session"
+  else:
+    echo "Unblock PIN failed: ", unblockResult.error
+    if unblockResult.sw != 0:
+      echo "  Status word: 0x", unblockResult.sw.toHex(4)
+
+    case unblockResult.error
+    of UnblockPinWrongPuk:
+      echo "  (Wrong PUK! Retries remaining: ", unblockResult.retriesRemaining, ")"
+    of UnblockPinBlocked:
+      echo "  (PUK is blocked! Wallet is lost)"
+    of UnblockPinInvalidFormat:
+      echo "  (Invalid format - PUK must be 12 digits, PIN must be 6 digits)"
+    of UnblockPinCapabilityNotSupported:
+      echo "  (Card does not support credentials management)"
+    of UnblockPinChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of UnblockPinSecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of UnblockPinTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
     return
 
- # Store some data
+  # Note: PIN is now back to original value via unblock
+  
+  # Store some data
   echo "\nStoring public data..."
   let testString = "Hello Keycard!"
   var dataToStore: seq[byte] = @[]
