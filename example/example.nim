@@ -9,6 +9,7 @@ import keycard/commands/change_pin
 import keycard/commands/init
 import keycard/commands/select
 import keycard/commands/ident
+import keycard/commands/generate_key
 import keycard/commands/get_status
 import keycard/commands/reset
 import keycard/commands/pair
@@ -321,6 +322,34 @@ proc main() =
 
   # Note: PIN is now back to original value via unblock
   
+  # Generate key on card (demonstrate GENERATE KEY command)
+  echo "\nGenerating key on card..."
+  let generateResult = card.generateKey()
+
+  if generateResult.success:
+    echo "Key generated successfully!"
+    echo "Key UID (SHA-256 of public key): ", generateResult.keyUID.prettyHex()
+    echo "Note: The card state is now the same as if LOAD KEY was performed"
+  else:
+    echo "Generate key failed: ", generateResult.error
+    if generateResult.sw != 0:
+      echo "  Status word: 0x", generateResult.sw.toHex(4)
+
+    case generateResult.error
+    of GenerateKeyCapabilityNotSupported:
+      echo "  (Card does not support key management)"
+    of GenerateKeyConditionsNotMet:
+      echo "  (Conditions not met - PIN must be verified)"
+    of GenerateKeyChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of GenerateKeySecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of GenerateKeyTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+    return
+
   # Store some data
   echo "\nStoring public data..."
   let testString = "Hello Keycard!"
@@ -381,7 +410,6 @@ proc main() =
       echo "  (Transport/connection error)"
     else:
       discard
-
     return
 
   echo "\nAll operations completed successfully!"
