@@ -30,6 +30,7 @@ const
   InsLoadKey* = 0xD0'u8
   InsDeriveKey* = 0xD1'u8
   InsGenerateMnemonic* = 0xD2'u8
+  InsRemoveKey* = 0xD3'u8
   
   # Status words
   SwSuccess* = 0x9000'u16

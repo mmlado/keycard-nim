@@ -33,6 +33,7 @@ task test, "Run unit tests with mock PC/SC":
   exec "nim r -d:mockPcsc --path:src tests/store_data_test.nim"
   exec "nim r -d:mockPcsc --path:src tests/get_data_test.nim"
   exec "nim r -d:mockPcsc --path:src tests/generate_key_test.nim"
+  exec "nim r -d:mockPcsc --path:src tests/remove_key_test.nim"
 
 task example, "Run example":
   exec "nim c -r --path:src example/example.nim"

@@ -77,8 +77,8 @@ nimble clean
 | LOAD KEY | ❌ | Load cryptographic key to card |
 | DERIVE KEY | ❌ | Derive key using BIP32 path |
 | GENERATE MNEMONIC | ❌ | Generate BIP39 mnemonic on card |
-| REMOVE KEY | ❌ | Remove key from card |
-| GENERATE KEY | ❌ | Generate new key on card |
+| REMOVE KEY | ✅ | Remove key from card |
+| GENERATE KEY | ✅ | Generate new key on card |
 | SIGN | ❌ | Sign data with loaded key |
 | SET PINLESS PATH | ❌ | Set path for PIN-less signing |
 | EXPORT KEY | ❌ | Export public key or key pair |

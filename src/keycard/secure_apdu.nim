@@ -130,10 +130,6 @@ proc sendSecure*(card: var Keycard;
 
   let resp = transportResult.value
 
-  if resp.sw == 0x6982:
-    card.secureChannel.open = false
-    return SecureApduResult(success: true, data: @[], sw: 0x6982)
-
   if resp.sw != SwSuccess:
     card.secureChannel.open = false
     return SecureApduResult(success: true, data: @[], sw: resp.sw)

@@ -18,6 +18,7 @@ import keycard/types/application_info
 import keycard/commands/select
 import keycard/commands/change_pin
 import keycard/commands/generate_key
+import keycard/commands/remove_key
 import keycard/commands/get_data
 import keycard/commands/get_status
 import keycard/commands/ident
@@ -40,6 +41,7 @@ export application_info
 export select
 export change_pin
 export generate_key
+export remove_key
 export get_data
 export get_status
 export ident

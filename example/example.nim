@@ -10,6 +10,7 @@ import keycard/commands/init
 import keycard/commands/select
 import keycard/commands/ident
 import keycard/commands/generate_key
+import keycard/commands/remove_key
 import keycard/commands/get_status
 import keycard/commands/reset
 import keycard/commands/pair
@@ -122,6 +123,7 @@ proc main() =
     # Select again after reset (card state is cleared by reset)
     if not card.selectCard():
       return
+
   # Initialize the card
   echo "\nInitializing card..."
 
@@ -379,6 +381,34 @@ proc main() =
     of StoreDataChannelNotOpen:
       echo "  (Secure channel is not open)"
     of StoreDataTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+    # Continue anyway
+
+  # Remove key from card (demonstrate REMOVE KEY command)
+  echo "\nRemoving key from card..."
+  let removeResult = card.removeKey()
+ 
+  if removeResult.success:
+    echo "Key removed successfully!"
+    echo "Card is now in an uninitialized state"
+    echo "No signing operation is possible until a new LOAD KEY command"
+  else:
+    echo "Remove key failed: ", removeResult.error
+    if removeResult.sw != 0:
+      echo "  Status word: 0x", removeResult.sw.toHex(4)
+ 
+    case removeResult.error
+    of RemoveKeyCapabilityNotSupported:
+      echo "  (Card does not support key management)"
+    of RemoveKeyConditionsNotMet:
+      echo "  (Conditions not met - PIN must be verified)"
+    of RemoveKeyChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of RemoveKeySecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of RemoveKeyTransportError:
       echo "  (Transport/connection error)"
     else:
       discard
