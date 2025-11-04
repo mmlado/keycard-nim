@@ -1,4 +1,3 @@
-# tests/select_test.nim
 # Run with: nim r -d:mockPcsc --path:src tests/select_test.nim
 
 import std/unittest
@@ -87,7 +86,8 @@ suite "SELECT command":
       # Capabilities: 0x0F (all capabilities)
       innerTlv.add @[byte(0x8D), 0x01, 0x0F]
       
-      let mockResponse = @[byte(0xA4), byte(innerTlv.len)] & innerTlv & @[byte(0x90), 0x00]
+      # Use multi-byte length encoding (0x81) since innerTlv.len = 129 bytes
+      let mockResponse = @[byte(0xA4), 0x81, byte(innerTlv.len)] & innerTlv & @[byte(0x90), 0x00]
       
       t.mockCard().mockSetScriptedResponses(@[mockResponse])
       
@@ -168,6 +168,106 @@ suite "TLV parsing":
     
     check tags.hasTag(0x80)
     check not tags.hasTag(0x81)
+
+  test "parseTlv handles multi-byte length (0x81 form)":
+    # Test tag with 129 bytes value (requires 0x81 0x81 encoding)
+    var data: seq[byte] = @[byte(0xA4), 0x81, 0x81]  # Tag 0xA4, length = 129 bytes
+    data.add repeat(byte(0xAA), 129)  # 129 bytes of 0xAA
+    
+    let tags = parseTlv(data)
+    
+    check tags.len == 1
+    check tags[0].tag == 0xA4
+    check tags[0].value.len == 129
+    check tags[0].value[0] == 0xAA
+    check tags[0].value[128] == 0xAA
+
+  test "parseTlv handles multi-byte length (0x82 form)":
+    # Test tag with 300 bytes value (requires 0x82 0x01 0x2C encoding)
+    var data: seq[byte] = @[byte(0xA4), 0x82, 0x01, 0x2C]  # Tag 0xA4, length = 300 bytes
+    data.add repeat(byte(0xBB), 300)  # 300 bytes of 0xBB
+    
+    let tags = parseTlv(data)
+    
+    check tags.len == 1
+    check tags[0].tag == 0xA4
+    check tags[0].value.len == 300
+    check tags[0].value[0] == 0xBB
+    check tags[0].value[299] == 0xBB
+
+  test "parseTlv handles mixed short and long length forms":
+    # Mix of short form (< 128) and long form (>= 128)
+    var data: seq[byte] = @[]
+    
+    # First tag: short form, 10 bytes
+    data.add @[byte(0x80), 0x0A]
+    data.add repeat(byte(0x01), 10)
+    
+    # Second tag: long form 0x81, 200 bytes
+    data.add @[byte(0x81), 0x81, 0xC8]
+    data.add repeat(byte(0x02), 200)
+    
+    # Third tag: short form, 5 bytes
+    data.add @[byte(0x82), 0x05]
+    data.add repeat(byte(0x03), 5)
+    
+    let tags = parseTlv(data)
+    
+    check tags.len == 3
+    check tags[0].tag == 0x80
+    check tags[0].value.len == 10
+    check tags[0].value[0] == 0x01
+    
+    check tags[1].tag == 0x81
+    check tags[1].value.len == 200
+    check tags[1].value[0] == 0x02
+    
+    check tags[2].tag == 0x82
+    check tags[2].value.len == 5
+    check tags[2].value[0] == 0x03
+
+  test "select parses response with long length encoding":
+    when defined(mockPcsc):
+      # Test real-world case: response longer than 127 bytes
+      let t = newTransport()
+      var card = newKeycard(t)
+      defer: card.close()
+      card.connect("Mock Reader A")
+      
+      # Build a response with 129 bytes of data (triggers 0x81 encoding)
+      let instanceUid = repeat(byte(0x01), 16)
+      let pubKey = repeat(byte(0x02), 65)
+      let keyUid = repeat(byte(0x03), 32)
+      
+      var innerTlv: seq[byte] = @[]
+      # Instance UID (tag 0x8F, 16 bytes)
+      innerTlv.add @[byte(0x8F), 0x10] & instanceUid
+      # Public Key (tag 0x80, 65 bytes)
+      innerTlv.add @[byte(0x80), 0x41] & pubKey
+      # Version 3.1
+      innerTlv.add @[byte(0x02), 0x02, 0x03, 0x01]
+      # Free slots: 4
+      innerTlv.add @[byte(0x02), 0x01, 0x04]
+      # Key UID (tag 0x8E, 32 bytes)
+      innerTlv.add @[byte(0x8E), 0x20] & keyUid
+      # Capabilities: 0x1F
+      innerTlv.add @[byte(0x8D), 0x01, 0x1F]
+      
+      # The outer tag 0xA4 with multi-byte length encoding
+      let mockResponse = @[byte(0xA4), 0x81, byte(innerTlv.len)] & innerTlv & @[byte(0x90), 0x00]
+      
+      t.mockCard().mockSetScriptedResponses(@[mockResponse])
+      
+      let result = card.select()
+      
+      check result.success
+      check result.info.isInitialized()
+      check result.info.instanceUid.len == 16
+      check result.info.publicKey.len == 65
+      check result.info.keyUid.len == 32
+      check result.info.appVersion == (3'u8, 1'u8)
+      check result.info.freeSlots == 4
+      check result.info.capabilities == 0x1F
 
 when not defined(mockPcsc):
   suite "Mock tests skipped":

@@ -1,4 +1,3 @@
-# tests/ident_test.nim
 # Run with: nim r -d:mockPcsc --path:src tests/ident_test.nim
 
 import std/unittest
@@ -35,9 +34,10 @@ suite "IDENT command":
       innerTlv.add(byte(mockSig.len))
       innerTlv.add(mockSig)
 
-      # Build outer TLV (0xA0)
+      # Build outer TLV (0xA0) with multi-byte length encoding
+      # innerTlv.len = 172 bytes, requires 0x81 encoding
       var outerTlv: seq[byte] = @[
-        0xA0'u8, byte(innerTlv.len)
+        0xA0'u8, 0x81, byte(innerTlv.len)
       ]
       outerTlv.add(innerTlv)
       outerTlv.add(@[byte(0x90), 0x00])  # SW
@@ -85,8 +85,9 @@ suite "IDENT command":
       innerTlv.add(byte(mockSig.len))
       innerTlv.add(mockSig)
 
+      # Use multi-byte length encoding for outer TLV
       var outerTlv: seq[byte] = @[
-        0xA0'u8, byte(innerTlv.len)
+        0xA0'u8, 0x81, byte(innerTlv.len)
       ]
       outerTlv.add(innerTlv)
       outerTlv.add(@[byte(0x90), 0x00])
@@ -170,8 +171,9 @@ suite "IDENT command":
       innerTlv.add(byte(mockSig.len))
       innerTlv.add(mockSig)
 
+      # Use multi-byte length encoding for outer TLV
       var outerTlv: seq[byte] = @[
-        0xA0'u8, byte(innerTlv.len)
+        0xA0'u8, 0x81, byte(innerTlv.len)
       ]
       outerTlv.add(innerTlv)
       outerTlv.add(@[byte(0x90), 0x00])
