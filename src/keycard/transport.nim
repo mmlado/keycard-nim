@@ -25,10 +25,10 @@ type
     readerName*: string
     hasCard: bool
 
-proc ok*[T](val: T): TransportResult[T] =
+proc transportOk*[T](val: T): TransportResult[T] =
   TransportResult[T](success: true, value: val)
 
-proc err*[T](e: TransportError): TransportResult[T] =
+proc transportErr*[T](e: TransportError): TransportResult[T] =
   TransportResult[T](success: false, error: e)
 
 proc newTransport*(): Transport =
@@ -51,16 +51,16 @@ proc close*(t: Transport) =
 
 proc parseApduResponse(resp: openArray[byte]): TransportResult[ApduResponse] =
   if resp.len < 2:
-    return err[ApduResponse](TransportResponseTooShort)
+    return transportErr[ApduResponse](TransportResponseTooShort)
   let sw = (uint16(resp[^2]) shl 8) or uint16(resp[^1])
   let data = @resp[0 ..< resp.len-2]
-  ok(ApduResponse(data: data, sw: sw))
+  transportOk(ApduResponse(data: data, sw: sw))
 
 proc transmit*(t: Transport; apdu: openArray[byte]): TransportResult[ApduResponse] =
   ## Transmit raw APDU bytes and return response
   ## Does not interpret status words - caller's responsibility
   if not t.hasCard:
-    return err[ApduResponse](TransportNotConnected)
+    return transportErr[ApduResponse](TransportNotConnected)
   let raw = t.card.transmit(@apdu)
   parseApduResponse(raw)
 

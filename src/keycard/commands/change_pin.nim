@@ -79,8 +79,7 @@ proc changePin*(card: var Keycard; pinType: PinType; newPin: seq[byte]): ChangeP
       return ChangePinResult(success: false,
                             error: ChangePinInvalidFormat,
                             sw: 0x6A80'u16)
-  echo newPin
-  echo pinType
+
   let secureResult = card.sendSecure(
     ins = InsChangeSecret,
     p1 = byte(pinType),

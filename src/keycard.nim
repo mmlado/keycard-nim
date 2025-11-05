@@ -17,6 +17,7 @@ import keycard/constants
 import keycard/types/application_info
 import keycard/commands/select
 import keycard/commands/change_pin
+import keycard/commands/export_key
 import keycard/commands/generate_key
 import keycard/commands/remove_key
 import keycard/commands/get_data
@@ -30,6 +31,7 @@ import keycard/commands/mutually_authenticate
 import keycard/commands/verify_pin
 import keycard/commands/unblock_pin
 import keycard/commands/unpair
+import keycard/commands/sign
 import keycard/commands/store_data
 import keycard/secure_apdu
 
@@ -40,6 +42,7 @@ export constants
 export application_info
 export select
 export change_pin
+export export_key
 export generate_key
 export remove_key
 export get_data
@@ -53,5 +56,6 @@ export mutually_authenticate
 export verify_pin
 export unblock_pin
 export unpair
+export sign
 export store_data
 export secure_apdu

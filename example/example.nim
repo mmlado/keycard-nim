@@ -3,6 +3,8 @@
 
 import std/strutils
 import pcsc/util as putil
+import secp256k1
+import nimcrypto/sha2
 import keycard/transport
 import keycard/keycard
 import keycard/commands/change_pin
@@ -11,6 +13,8 @@ import keycard/commands/select
 import keycard/commands/ident
 import keycard/commands/generate_key
 import keycard/commands/remove_key
+import keycard/commands/export_key
+import keycard/commands/sign
 import keycard/commands/get_status
 import keycard/commands/reset
 import keycard/commands/pair
@@ -351,6 +355,188 @@ proc main() =
     else:
       discard
     return
+
+  # Export the current key (demonstrate EXPORT KEY command)
+  echo "\nExporting current key (public key only)..."
+  let exportResult = card.exportKey(CurrentKey, PublicOnly)
+
+  if exportResult.success:
+    echo "Key exported successfully!"
+    if exportResult.publicKey.len > 0:
+      echo "Public key (", exportResult.publicKey.len, " bytes): ", exportResult.publicKey.prettyHex()
+    if exportResult.privateKey.len > 0:
+      echo "Private key (", exportResult.privateKey.len, " bytes): [REDACTED]"
+    if exportResult.chainCode.len > 0:
+      echo "Chain code (", exportResult.chainCode.len, " bytes): ", exportResult.chainCode.prettyHex()
+  else:
+    echo "Export key failed: ", exportResult.error
+    if exportResult.sw != 0:
+      echo "  Status word: 0x", exportResult.sw.toHex(4)
+
+    case exportResult.error
+    of ExportKeyCapabilityNotSupported:
+      echo "  (Card does not support key management)"
+    of ExportKeyPrivateNotExportable:
+      echo "  (Private key cannot be exported for this path)"
+    of ExportKeyInvalidPath:
+      echo "  (Path is malformed)"
+    of ExportKeyInvalidParams:
+      echo "  (Invalid P1 or P2 parameters)"
+    of ExportKeyConditionsNotMet:
+      echo "  (Conditions not met - PIN must be verified)"
+    of ExportKeyChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of ExportKeySecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of ExportKeyTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+    # Continue anyway
+
+  # Sign some data and verify signature (demonstrate SIGN command)
+  echo "\n========================================"
+  echo "SIGNING AND VERIFICATION DEMO"
+  echo "========================================"
+
+  # Create a message and hash it
+  let message = "Hello, Keycard! This is a test message for signing."
+  echo "\nMessage to sign: \"", message, "\""
+
+  # Calculate SHA-256 hash of the message
+  var messageBytes: seq[byte] = @[]
+  for c in message:
+    messageBytes.add(byte(c))
+
+  let hashDigest = sha256.digest(messageBytes)
+  var hash: array[32, byte]
+  for i in 0..<32:
+    hash[i] = hashDigest.data[i]
+
+  echo "Message hash (SHA-256): ", hash.prettyHex()
+
+  # Sign the hash with the current key
+  echo "\nSigning with current key on card..."
+  let signResult = card.sign(hash)
+
+  if not signResult.success:
+    echo "Sign failed: ", signResult.error
+    if signResult.sw != 0:
+      echo "  Status word: 0x", signResult.sw.toHex(4)
+
+    case signResult.error
+    of SignCapabilityNotSupported:
+      echo "  (Card does not support key management)"
+    of SignDataTooShort:
+      echo "  (Hash must be exactly 32 bytes)"
+    of SignNoPinlessPath:
+      echo "  (No PIN-less path defined)"
+    of SignAlgorithmNotSupported:
+      echo "  (Algorithm not supported - only ECDSA secp256k1 on Keycard)"
+    of SignConditionsNotMet:
+      echo "  (Conditions not met - PIN must be verified and key loaded)"
+    of SignChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of SignSecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of SignTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+    # Continue anyway - skip verification
+  else:
+    echo "Signature created successfully!"
+    echo "Signature (", signResult.signature.len, " bytes): ", signResult.signature.prettyHex()
+
+    # If we got the signature template format, we have the public key
+    if signResult.publicKey.len > 0:
+      echo "Public key from signature template: ", signResult.publicKey.prettyHex()
+
+    # Now export the public key to verify the signature
+    echo "\nExporting public key for verification..."
+    let verifyExportResult = card.exportKey(CurrentKey, PublicOnly)
+
+    if not verifyExportResult.success:
+      echo "Export key for verification failed: ", verifyExportResult.error
+      # Continue anyway
+    elif verifyExportResult.publicKey.len == 0:
+      echo "No public key returned from export"
+      # Continue anyway
+    else:
+      echo "Public key exported (", verifyExportResult.publicKey.len, " bytes)"
+
+      # Verify the signature
+      echo "\nVerifying signature..."
+
+      try:
+        # Parse the signature
+        # If signature is 65 bytes, it includes recovery ID: (r, s, recId)
+        # If signature is 64 bytes, it's just (r, s)
+        var sigToVerify: seq[byte]
+        var pubKeyToUse: seq[byte] = verifyExportResult.publicKey
+
+        if signResult.signature.len == 65:
+          # Signature with recovery ID - extract just r and s for verification
+          sigToVerify = signResult.signature[0..63]
+          echo "Using 65-byte signature format (r, s, recId)"
+          echo "Recovery ID: ", signResult.signature[64]
+        elif signResult.signature.len == 64:
+          # Signature without recovery ID
+          sigToVerify = signResult.signature
+          echo "Using 64-byte signature format (r, s)"
+        else:
+          echo "Unexpected signature length: ", signResult.signature.len
+          sigToVerify = signResult.signature
+
+        # Verify using secp256k1
+        # Parse public key (assuming uncompressed format: 0x04 + X + Y)
+        if pubKeyToUse[0] == 0x04 and pubKeyToUse.len == 65:
+          # Uncompressed public key
+          let pubKeyResult = SkPublicKey.fromRaw(pubKeyToUse)
+          if pubKeyResult.isOk:
+            let pubKey = pubKeyResult.get()
+ 
+            # Parse signature (64 bytes: r + s)
+            if sigToVerify.len == 64:
+              # Try to parse as raw signature
+              let sigResult = SkSignature.fromRaw(sigToVerify)
+              if sigResult.isOk:
+                let sig = sigResult.get()
+ 
+                # Create message from hash
+                var hashArray: array[32, byte]
+                for i in 0..<32:
+                  hashArray[i] = hash[i]
+ 
+                let msgResult = SkMessage.fromBytes(hashArray)
+                if msgResult.isOk:
+                  let msg = msgResult.get()
+ 
+                  # Verify signature
+                  if verify(sig, msg, pubKey):
+                    echo "  SIGNATURE VERIFICATION SUCCESSFUL!"
+                    echo "  The signature is valid for the message"
+                    echo "  The key on the card correctly signed the hash"
+                  else:
+                    echo "  SIGNATURE VERIFICATION FAILED!"
+                    echo "  The signature is NOT valid for this message"
+                else:
+                  echo "Failed to create message from hash"
+              else:
+                echo "Failed to parse signature (raw format)"
+            else:
+              echo "Cannot verify: signature has unexpected length ", sigToVerify.len
+          else:
+            echo "Failed to parse public key"
+        else:
+          echo "Unexpected public key format (expected uncompressed 0x04 + 64 bytes)"
+          echo "Public key length: ", pubKeyToUse.len
+          if pubKeyToUse.len > 0:
+            echo "First byte: 0x", pubKeyToUse[0].toHex(2)
+      except Exception as e:
+        echo "Exception during verification: ", e.msg
+
+  echo "\n========================================"
 
   # Store some data
   echo "\nStoring public data..."
