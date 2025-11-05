@@ -80,7 +80,7 @@ nimble clean
 | REMOVE KEY | ✅ | Remove key from card |
 | GENERATE KEY | ✅ | Generate new key on card |
 | SIGN | ✅ | Sign data with loaded key |
-| SET PINLESS PATH | ❌ | Set path for PIN-less signing |
+| SET PINLESS PATH | ✅ | Set path for PIN-less signing |
 | EXPORT KEY | ✅ | Export public key or key pair |
 | STORE DATA | ✅ | Store data in card slots |
 | GET DATA | ✅ | Retrieve stored data |

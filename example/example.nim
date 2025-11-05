@@ -15,6 +15,7 @@ import keycard/commands/generate_key
 import keycard/commands/remove_key
 import keycard/commands/export_key
 import keycard/commands/sign
+import keycard/commands/set_pinless_path
 import keycard/commands/get_status
 import keycard/commands/reset
 import keycard/commands/pair
@@ -535,6 +536,53 @@ proc main() =
             echo "First byte: 0x", pubKeyToUse[0].toHex(2)
       except Exception as e:
         echo "Exception during verification: ", e.msg
+
+  echo "\n========================================"
+
+  # Set PIN-less path (demonstrate SET PINLESS PATH command)
+  echo "\n========================================"
+  echo "SET PINLESS PATH DEMO"
+  echo "========================================"
+
+  # Set a PIN-less path that allows signing without PIN when current key matches
+  let pinlessPath = "m/44'/60'/0'/0/0"
+  echo "\nSetting PIN-less path: ", pinlessPath
+  echo "This allows signing without PIN verification when the current key matches this path"
+
+  let setPinlessResult = card.setPinlessPath(pinlessPath)
+
+  if setPinlessResult.success:
+    echo "PIN-less path set successfully!"
+    echo "Note: Signing with SIGN command using SignPinlessPath derivation option"
+    echo "      will now work without PIN verification when on this path"
+  else:
+    echo "Set PIN-less path failed: ", setPinlessResult.error
+    if setPinlessResult.sw != 0:
+      echo "  Status word: 0x", setPinlessResult.sw.toHex(4)
+
+    case setPinlessResult.error
+    of SetPinlessPathInvalidData:
+      echo "  (Invalid path data)"
+    of SetPinlessPathConditionsNotMet:
+      echo "  (PIN must be verified)"
+    of SetPinlessPathChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of SetPinlessPathSecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of SetPinlessPathTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+
+  # Demonstrate disabling PIN-less path
+  echo "\nDisabling PIN-less path (setting to empty)..."
+  let disablePinlessResult = card.setPinlessPath("")
+
+  if disablePinlessResult.success:
+    echo "PIN-less path disabled successfully!"
+    echo "Signing will now require PIN verification again"
+  else:
+    echo "Disable PIN-less path failed: ", disablePinlessResult.error
 
   echo "\n========================================"
 

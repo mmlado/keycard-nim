@@ -1,8 +1,6 @@
 ## Secure APDU encryption and decryption
 ## Handles encrypted communication over secure channel
 
-import std/strutils
-import pcsc/util as putil
 import keycard
 import transport
 import apdu

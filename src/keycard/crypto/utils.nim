@@ -5,7 +5,6 @@ import nimcrypto
 import nimcrypto/[bcmode, rijndael, sysrand, pbkdf2, hash]
 import secp256k1
 import secp256k1/abi
-import std/strutils
 
 proc ecdhRawHashFunc(output: pointer, x32: pointer, y32: pointer, data: pointer): cint {.cdecl, noSideEffect, gcsafe.} =
   copyMem(output, x32, 32)
@@ -174,7 +173,7 @@ proc generatePairingToken*(secret: string): seq[byte] =
   const dklen = 32
 
   var ctx: HMAC[sha256]
-  var output: array[32, byte]
+  var output: array[dklen, byte]
 
   # PBKDF2 using SHA256
   discard pbkdf2(ctx, secret, salt, iterations, output)
