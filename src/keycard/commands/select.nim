@@ -1,7 +1,6 @@
 ## SELECT command implementation
 ## Selects the Keycard applet on the card
 
-import std/options
 import ../keycard
 import ../constants
 import ../apdu

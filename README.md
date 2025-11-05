@@ -59,33 +59,6 @@ Clean build artifacts:
 nimble clean
 ```
 
-## Implementation Status
-
-| Command | Status | Description |
-|---------|--------|-------------|
-| SELECT | ✅ | Select Keycard applet, parse application info |
-| INIT | ✅ | Initialize card with PIN, PUK, and pairing secret |
-| IDENT | ✅ | Send identity challenge to card |
-| OPEN SECURE CHANNEL | ✅ | Establish encrypted communication |
-| MUTUALLY AUTHENTICATE | ✅ | Mutual authentication between host and card |
-| PAIR | ✅ | Pair with card using ECDH |
-| UNPAIR | ✅ | Remove pairing slot |
-| GET STATUS | ✅ | Retrieve card status (PIN retries, etc.) |
-| VERIFY PIN | ✅ | Verify user PIN |
-| CHANGE PIN | ✅ | Change user PIN |
-| UNBLOCK PIN | ✅ | Unblock PIN using PUK |
-| LOAD KEY | ❌ | Load cryptographic key to card |
-| DERIVE KEY | ❌ | Derive key using BIP32 path |
-| GENERATE MNEMONIC | ❌ | Generate BIP39 mnemonic on card |
-| REMOVE KEY | ✅ | Remove key from card |
-| GENERATE KEY | ✅ | Generate new key on card |
-| SIGN | ✅ | Sign data with loaded key |
-| SET PINLESS PATH | ✅ | Set path for PIN-less signing |
-| EXPORT KEY | ✅ | Export public key or key pair |
-| STORE DATA | ✅ | Store data in card slots |
-| GET DATA | ✅ | Retrieve stored data |
-| FACTORY RESET | ✅ | Reset card to factory state |
-
 ## Contributing
 
 Contributions welcome! Please:

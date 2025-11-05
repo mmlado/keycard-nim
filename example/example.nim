@@ -13,6 +13,8 @@ import keycard/commands/select
 import keycard/commands/ident
 import keycard/commands/generate_key
 import keycard/commands/remove_key
+import keycard/commands/load_key
+import keycard/commands/generate_mnemonic
 import keycard/commands/export_key
 import keycard/commands/sign
 import keycard/commands/set_pinless_path
@@ -20,15 +22,11 @@ import keycard/commands/get_status
 import keycard/commands/reset
 import keycard/commands/pair
 import keycard/commands/open_secure_channel
-import keycard/commands/mutually_authenticate
 import keycard/commands/verify_pin
 import keycard/commands/unblock_pin
 import keycard/commands/unpair
 import keycard/commands/store_data
 import keycard/commands/get_data
-import keycard/secure_apdu
-import keycard/crypto/utils
-import keycard/util
 
 const
   PIN = "123456"
@@ -40,21 +38,21 @@ proc selectCard(card: var Keycard): bool =
   ## Select the Keycard applet and display info
   ## Returns true on success, false on failure
   echo "Selecting card..."
-  let result = card.select()
+  let selecResult = card.select()
 
-  if result.success:
-    echo result.info
-    echo "Card public key: ", result.info.publicKey.prettyHex()
+  if selecResult.success:
+    echo selecResult.info
+    echo "Card public key: ", selecResult.info.publicKey.prettyHex()
     return true
   else:
     echo "SELECT failed!"
-    case result.error
+    case selecResult.error
     of SelectTransportError:
       echo "  Transport error (connection issue?)"
     of SelectFailed:
-      echo "  Card returned error SW: 0x", result.sw.toHex(4)
+      echo "  Card returned error SW: 0x", selecResult.sw.toHex(4)
     else:
-      echo "  Unknown error: ", result.error
+      echo "  Unknown error: ", selecResult.error
     return false
 
 proc main() =
@@ -357,6 +355,44 @@ proc main() =
       discard
     return
 
+  # Generate a mnemonic (demonstrate GENERATE MNEMONIC command)
+  echo "\n========================================"
+  echo "GENERATE MNEMONIC DEMO"
+  echo "========================================"
+  echo "\nGenerating a BIP39 mnemonic (12 words)..."
+
+  let mnemonicResult = card.generateMnemonic(checksumSize = 4)
+
+  if mnemonicResult.success:
+    echo "Mnemonic generated successfully!"
+    echo "Number of words: ", mnemonicResult.indexes.len
+    echo "Word indexes (0-2047): ", mnemonicResult.indexes
+    echo ""
+    echo "Note: These are word indexes (0-2047) for the BIP39 wordlist"
+    echo "      In a real application, you would convert these to actual words"
+    echo "      using the official BIP39 English wordlist"
+  else:
+    echo "Generate mnemonic failed: ", mnemonicResult.error
+    if mnemonicResult.sw != 0:
+      echo "  Status word: 0x", mnemonicResult.sw.toHex(4)
+
+    case mnemonicResult.error
+    of GenerateMnemonicCapabilityNotSupported:
+      echo "  (Card does not support key management)"
+    of GenerateMnemonicInvalidChecksumSize:
+      echo "  (Invalid checksum size - must be 4-8)"
+    of GenerateMnemonicChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of GenerateMnemonicSecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of GenerateMnemonicTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+    # Continue anyway
+
+  echo "\n========================================"
+
   # Export the current key (demonstrate EXPORT KEY command)
   echo "\nExporting current key (public key only)..."
   let exportResult = card.exportKey(CurrentKey, PublicOnly)
@@ -647,6 +683,55 @@ proc main() =
     else:
       discard
     # Continue anyway
+
+  # Load a key onto the card (demonstrate LOAD KEY command)
+  echo "\n========================================"
+  echo "LOAD KEY DEMO"
+  echo "========================================"
+  echo "\nLoading a keypair onto the card..."
+  echo "Note: This is just a demo with a test key - never use this key in production!"
+
+  # Create a test keypair (in real usage, you'd use a properly generated key)
+  # This is a dummy private key (32 bytes) - DO NOT USE IN PRODUCTION
+  let testPrivateKey = @[
+    byte(0x01), 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
+    0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+    0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20
+  ]
+
+  # Load the keypair (public key can be omitted - card will derive it)
+  let loadResult = card.loadKey(EccKeypair, testPrivateKey)
+
+  if loadResult.success:
+    echo "Key loaded successfully!"
+    echo "Key UID (SHA-256 of public key): ", loadResult.keyUID.prettyHex()
+    echo "The card can now perform signing operations with this key"
+  else:
+    echo "Load key failed: ", loadResult.error
+    if loadResult.sw != 0:
+      echo "  Status word: 0x", loadResult.sw.toHex(4)
+
+    case loadResult.error
+    of LoadKeyCapabilityNotSupported:
+      echo "  (Card does not support key management)"
+    of LoadKeyInvalidFormat:
+      echo "  (Invalid key format)"
+    of LoadKeyInvalidKeyType:
+      echo "  (Invalid key type - P1 parameter)"
+    of LoadKeyConditionsNotMet:
+      echo "  (Conditions not met - PIN must be verified)"
+    of LoadKeyChannelNotOpen:
+      echo "  (Secure channel is not open)"
+    of LoadKeySecureApduError:
+      echo "  (Secure APDU encryption/MAC error)"
+    of LoadKeyTransportError:
+      echo "  (Transport/connection error)"
+    else:
+      discard
+    # Continue anyway
+
+  echo "\n========================================"
 
   # Unpair the pairing slot
   echo "\nUnpairing slot ", pairResult.pairingIndex, "..."
