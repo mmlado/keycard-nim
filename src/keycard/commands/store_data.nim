@@ -14,8 +14,8 @@ type
   StoreDataError* = enum
     StoreDataOk
     StoreDataTransportError
-    StoreDataUndefinedP1        # SW 0x6A86
-    StoreDataTooLong            # SW 0x6A80
+    StoreDataUndefinedP1
+    StoreDataTooLong
     StoreDataFailed
     StoreDataChannelNotOpen
     StoreDataSecureApduError
@@ -57,9 +57,7 @@ proc storeData*(card: var Keycard; dataType: DataType; data: seq[byte]): StoreDa
 
   let secureResult = card.sendSecure(
     ins = InsStoreData,
-    cla = ClaProprietary,
     p1 = byte(dataType),
-    p2 = 0x00,
     data = data
   )
 
@@ -81,11 +79,11 @@ proc storeData*(card: var Keycard; dataType: DataType; data: seq[byte]): StoreDa
   case secureResult.sw
   of SwSuccess:
     return StoreDataResult(success: true)
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return StoreDataResult(success: false,
                           error: StoreDataUndefinedP1,
                           sw: secureResult.sw)
-  of 0x6A80:
+  of SwWrongData:
     return StoreDataResult(success: false,
                           error: StoreDataTooLong,
                           sw: secureResult.sw)

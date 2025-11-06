@@ -80,7 +80,7 @@ proc generateMnemonic*(
   if checksumSize < 4 or checksumSize > 8:
     return GenerateMnemonicResult(success: false,
                                   error: GenerateMnemonicInvalidChecksumSize,
-                                  sw: 0x6A86)
+                                  sw: SwIncorrectP1P2)
 
   let secureResult = card.sendSecure(
     ins = InsGenerateMnemonic,
@@ -106,7 +106,7 @@ proc generateMnemonic*(
   of SwSuccess:
     let indexes = parseWordIndexes(secureResult.data)
     return GenerateMnemonicResult(success: true, indexes: indexes)
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return GenerateMnemonicResult(success: false,
                                   error: GenerateMnemonicInvalidChecksumSize,
                                   sw: secureResult.sw)

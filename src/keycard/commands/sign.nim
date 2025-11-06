@@ -5,13 +5,7 @@ import ../keycard
 import ../constants
 import ../secure_apdu
 import ../tlv
-
-# Derivation source constants (can be OR'd with P1)
-# These match the DERIVE KEY and EXPORT KEY command specifications
-const
-  DeriveMaster* = 0x00'u8    # Derive from master key
-  DeriveParent* = 0x40'u8    # Derive from parent key
-  DeriveCurrent* = 0x80'u8   # Derive from current key
+import ../util
 
 type
   SignDerivationOption* = enum
@@ -29,9 +23,9 @@ type
   SignError* = enum
     SignOk
     SignTransportError
-    SignDataTooShort           # SW 0x6A80
-    SignNoPinlessPath          # SW 0x6A88
-    SignAlgorithmNotSupported  # SW 0x6A81
+    SignDataTooShort
+    SignNoPinlessPath
+    SignAlgorithmNotSupported
     SignFailed
     SignCapabilityNotSupported  # Key management capability required
     SignSecureApduError
@@ -48,16 +42,6 @@ type
       error*: SignError
       sw*: uint16
 
-proc encodeSignPath(path: openArray[uint32]): seq[byte] =
-  ## Encode a sequence of 32-bit integers as big-endian bytes
-  result = newSeq[byte](path.len * 4)
-  for i, value in path:
-    let offset = i * 4
-    result[offset] = byte((value shr 24) and 0xFF)
-    result[offset + 1] = byte((value shr 16) and 0xFF)
-    result[offset + 2] = byte((value shr 8) and 0xFF)
-    result[offset + 3] = byte(value and 0xFF)
-
 proc parseEcdsaSignature(derEncoded: seq[byte]): seq[byte] =
   ## Parse DER-encoded ECDSA signature contents (without SEQUENCE wrapper) to extract r and s values
   ## derEncoded should be the VALUE of tag 0x30, starting directly with INTEGER tags
@@ -66,16 +50,20 @@ proc parseEcdsaSignature(derEncoded: seq[byte]): seq[byte] =
   if derEncoded.len < 6:
     return @[]
 
-  # We receive the contents of the SEQUENCE, not the SEQUENCE tag itself
-  # So we start directly at the first INTEGER tag
   var pos = 0
 
   if pos >= derEncoded.len or derEncoded[pos] != 0x02:  # INTEGER tag
     return @[]
   inc pos
 
+  if pos >= derEncoded.len:
+    return @[]
+  
   let rLen = int(derEncoded[pos])
   inc pos
+  
+  if rLen == 0 or rLen > 33:
+    return @[]
 
   if pos + rLen > derEncoded.len:
     return @[]
@@ -87,8 +75,14 @@ proc parseEcdsaSignature(derEncoded: seq[byte]): seq[byte] =
     return @[]
   inc pos
 
+  if pos >= derEncoded.len:
+    return @[]
+  
   let sLen = int(derEncoded[pos])
   inc pos
+  
+  if sLen == 0 or sLen > 33:
+    return @[]
 
   if pos + sLen > derEncoded.len:
     return @[]
@@ -99,6 +93,11 @@ proc parseEcdsaSignature(derEncoded: seq[byte]): seq[byte] =
     rValue = rValue[1 .. ^1]
   while sValue.len > 0 and sValue[0] == 0:
     sValue = sValue[1 .. ^1]
+
+  if rValue.len == 0 or rValue.len > 32:
+    return @[]
+  if sValue.len == 0 or sValue.len > 32:
+    return @[]
 
   while rValue.len < 32:
     rValue = @[byte(0)] & rValue
@@ -142,21 +141,22 @@ proc sign*(
   ## Note: If signature template format is returned, recovery ID must be calculated
   ## by trying values 0-3 and checking if recovered public key matches
 
+  if hash.len != 32:
+    return SignResult(success: false,
+                    error: SignDataTooShort,
+                    sw: SwWrongData)
+
   if not card.appInfo.hasKeyManagement():
     return SignResult(success: false,
-                     error: SignCapabilityNotSupported,
-                     sw: 0)
+                    error: SignCapabilityNotSupported,
+                    sw: 0)
 
   if derivation != SignPinlessPath:
     if not card.secureChannel.open:
       return SignResult(success: false,
-                       error: SignChannelNotOpen,
-                       sw: 0)
+                      error: SignChannelNotOpen,
+                      sw: 0)
 
-  if hash.len != 32:
-    return SignResult(success: false,
-                     error: SignDataTooShort,
-                     sw: 0x6A80)
 
   let p1 = byte(derivation) or deriveSource
 
@@ -164,7 +164,7 @@ proc sign*(
 
   var data = @hash
   if derivation == SignDerive or derivation == SignDeriveAndMakeCurrent:
-    data.add(encodeSignPath(path))
+    data.add(encodeBip32Path(path))
 
   let secureResult = card.sendSecure(
     ins = InsSign,
@@ -191,19 +191,19 @@ proc sign*(
   case secureResult.sw
   of SwSuccess:
     discard
-  of 0x6A80:
+  of SwWrongData:
     return SignResult(success: false,
                      error: SignDataTooShort,
                      sw: secureResult.sw)
-  of 0x6A88:
+  of SwReferencedDataNotFound:
     return SignResult(success: false,
                      error: SignNoPinlessPath,
                      sw: secureResult.sw)
-  of 0x6A81:
+  of SwFunctionNotSupported:
     return SignResult(success: false,
                      error: SignAlgorithmNotSupported,
                      sw: secureResult.sw)
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return SignResult(success: false,
                      error: SignConditionsNotMet,
                      sw: secureResult.sw)

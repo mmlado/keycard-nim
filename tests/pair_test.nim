@@ -121,7 +121,7 @@ suite "PAIR command":
 
       check not result.success
       check result.error == PairInvalidP1
-      check result.sw == 0x6A86'u16
+      check result.sw == SwIncorrectP1P2
 
     test "pair handles invalid data error on step 1":
       let t = newTransport()
@@ -138,7 +138,7 @@ suite "PAIR command":
 
       check not result.success
       check result.error == PairInvalidData
-      check result.sw == 0x6A80'u16
+      check result.sw == SwWrongData
 
     test "pair handles slots full error":
       let t = newTransport()
@@ -155,7 +155,7 @@ suite "PAIR command":
 
       check not result.success
       check result.error == PairSlotsFull
-      check result.sw == 0x6A84'u16
+      check result.sw == SwNotEnoughMemory
 
     test "pair handles secure channel already open error":
       let t = newTransport()
@@ -172,7 +172,7 @@ suite "PAIR command":
 
       check not result.success
       check result.error == PairSecureChannelOpen
-      check result.sw == 0x6985'u16
+      check result.sw == SwConditionsNotSatisfied
 
     test "pair handles invalid response length on step 1":
       let t = newTransport()

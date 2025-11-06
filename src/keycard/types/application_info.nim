@@ -60,15 +60,14 @@ proc parseApplicationInfo*(data: openArray[byte]): ApplicationInfo =
         result.appVersion = (versionBytes[0], versionBytes[1])
       
       # Parse free slots
-      # Note: Tag 0x02 appears twice (version and free slots)
-      # We need to get the second occurrence or handle differently
-      var foundVersion = false
+      # Note: Tag 0x02 appears twice in the template:
+      #   - First occurrence: 2-byte application version (major, minor)
+      #   - Second occurrence: 1-byte free pairing slots
+      # We differentiate by checking the value length
       for tag in tags:
-        if tag.tag == TagAppVersion:
-          if foundVersion and tag.value.len == 1:
-            result.freeSlots = tag.value[0]
-            break
-          foundVersion = true
+        if tag.tag == TagAppVersion and tag.value.len == 1:
+          result.freeSlots = tag.value[0]
+          break
       
       # Parse capabilities
       let capBytes = tags.findTag(TagCapabilities)

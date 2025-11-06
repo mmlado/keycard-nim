@@ -63,7 +63,7 @@ proc removeKey*(card: var Keycard): RemoveKeyResult =
   case secureResult.sw
   of SwSuccess:
     return RemoveKeyResult(success: true)
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return RemoveKeyResult(success: false,
                           error: RemoveKeyConditionsNotMet,
                           sw: secureResult.sw)

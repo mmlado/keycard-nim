@@ -34,7 +34,6 @@ proc select*(card: var Keycard): SelectResult =
     ins = InsSelect,
     cla = ClaIso7816,
     p1 = 0x04,
-    p2 = 0x00,
     data = KeycardAid
   )
   

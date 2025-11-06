@@ -11,7 +11,7 @@ type
   IdentError* = enum
     IdentOk
     IdentTransportError
-    IdentInvalidFormat          # SW 0x6A80
+    IdentInvalidFormat
     IdentFailed
     IdentInvalidResponse
     IdentSignatureVerificationFailed
@@ -67,9 +67,6 @@ proc ident*(card: var Keycard; challenge: seq[byte] = @[]): IdentResult =
   # Send IDENT command
   let transportResult = card.transport.send(
     ins = InsIdent,
-    cla = ClaProprietary,
-    p1 = 0x00,
-    p2 = 0x00,
     data = actualChallenge
   )
 
@@ -84,7 +81,7 @@ proc ident*(card: var Keycard; challenge: seq[byte] = @[]): IdentResult =
   case resp.sw
   of SwSuccess:
     discard  # Continue to parse response
-  of 0x6A80:
+  of SwWrongData:
     return IdentResult(success: false,
                       error: IdentInvalidFormat,
                       sw: resp.sw)

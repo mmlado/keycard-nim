@@ -223,7 +223,7 @@ suite "OPEN SECURE CHANNEL command":
 
       check not result.success
       check result.error == OpenSecureChannelInvalidP1
-      check result.sw == 0x6A86'u16
+      check result.sw == SwIncorrectP1P2
 
     test "open secure channel handles invalid data error":
       let t = newTransport()
@@ -242,7 +242,7 @@ suite "OPEN SECURE CHANNEL command":
 
       check not result.success
       check result.error == OpenSecureChannelInvalidData
-      check result.sw == 0x6A80'u16
+      check result.sw == SwWrongData
 
     test "open secure channel handles invalid response length":
       let t = newTransport()

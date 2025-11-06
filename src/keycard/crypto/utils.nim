@@ -92,6 +92,12 @@ proc aesCbcEncrypt*(key: seq[byte], iv: seq[byte], plaintext: seq[byte]): seq[by
   ## - Append 0x80
   ## - Pad with 0x00 until block size (16 bytes)
   
+  # Validate key and IV lengths
+  if key.len != 32:
+    raise newException(ValueError, "AES-256 requires a 32-byte key, got " & $key.len & " bytes")
+  if iv.len != 16:
+    raise newException(ValueError, "AES CBC requires a 16-byte IV, got " & $iv.len & " bytes")
+  
   var paddedData = plaintext
   paddedData.add(0x80'u8)
   
@@ -105,9 +111,9 @@ proc aesCbcEncrypt*(key: seq[byte], iv: seq[byte], plaintext: seq[byte]): seq[by
   var ivArray: array[16, byte]
   
   # Copy key and IV to fixed-size arrays
-  for i in 0..<min(32, key.len):
+  for i in 0..<32:
     keyArray[i] = key[i]
-  for i in 0..<min(16, iv.len):
+  for i in 0..<16:
     ivArray[i] = iv[i]
   
   # Initialize CBC mode
@@ -123,15 +129,21 @@ proc aesCbcEncrypt*(key: seq[byte], iv: seq[byte], plaintext: seq[byte]): seq[by
 proc aesCbcDecrypt*(key: seq[byte], iv: seq[byte], ciphertext: seq[byte]): seq[byte] =
   ## Decrypt data using AES-256-CBC and remove ISO/IEC 9797-1 Method 2 padding
   
+  # Validate key and IV lengths
+  if key.len != 32:
+    raise newException(ValueError, "AES-256 requires a 32-byte key, got " & $key.len & " bytes")
+  if iv.len != 16:
+    raise newException(ValueError, "AES CBC requires a 16-byte IV, got " & $iv.len & " bytes")
+  
   # Setup AES context
   var ctx: CBC[aes256]
   var keyArray: array[32, byte]
   var ivArray: array[16, byte]
   
   # Copy key and IV to fixed-size arrays
-  for i in 0..<min(32, key.len):
+  for i in 0..<32:
     keyArray[i] = key[i]
-  for i in 0..<min(16, iv.len):
+  for i in 0..<16:
     ivArray[i] = iv[i]
   
   # Initialize CBC mode
@@ -149,8 +161,8 @@ proc aesCbcDecrypt*(key: seq[byte], iv: seq[byte], ciphertext: seq[byte]): seq[b
       result = output[0..<i]
       return
   
-  # If no padding found, return as-is
-  result = output
+  # If no padding found, this indicates corrupted data or decryption failure
+  raise newException(ValueError, "Invalid padding: no 0x80 marker found in decrypted data")
 
 proc generateRandomBytes*(n: int): seq[byte] =
   ## Generate n random bytes using cryptographically secure RNG
@@ -199,6 +211,10 @@ proc aesCbcMac*(key: seq[byte], data: seq[byte], padding: bool = false): seq[byt
   ##   data: Data to MAC
   ##   padding: Whether to apply ISO/IEC 9797-1 Method 2 padding (default: false)
 
+  # Validate key length
+  if key.len != 32:
+    raise newException(ValueError, "AES-256 requires a 32-byte key, got " & $key.len & " bytes")
+
   var inputData = data
   
   # Optionally add ISO/IEC 9797-1 Method 2 padding
@@ -214,7 +230,7 @@ proc aesCbcMac*(key: seq[byte], data: seq[byte], padding: bool = false): seq[byt
   var ivArray: array[16, byte]  # Zero IV
 
   # Copy key to fixed-size array
-  for i in 0..<min(32, key.len):
+  for i in 0..<32:
     keyArray[i] = key[i]
 
   # Initialize with zero IV

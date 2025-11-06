@@ -46,9 +46,7 @@ proc getData*(card: var Keycard; dataType: DataType): GetDataResult =
 
   let transportResult = card.transport.send(
     ins = InsGetData,
-    cla = ClaProprietary,
-    p1 = byte(dataType),
-    p2 = 0x00
+    p1 = byte(dataType)
   )
 
   if not transportResult.success:
@@ -61,7 +59,7 @@ proc getData*(card: var Keycard; dataType: DataType): GetDataResult =
   case resp.sw
   of SwSuccess:
     return GetDataResult(success: true, data: resp.data)
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return GetDataResult(success: false,
                         error: GetDataUndefinedP1,
                         sw: resp.sw)

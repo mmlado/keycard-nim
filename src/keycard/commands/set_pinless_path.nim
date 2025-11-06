@@ -15,7 +15,7 @@ type
   SetPinlessPathError* = enum
     SetPinlessPathOk
     SetPinlessPathTransportError
-    SetPinlessPathInvalidData      # SW 0x6A80
+    SetPinlessPathInvalidData
     SetPinlessPathFailed
     SetPinlessPathCapabilityNotSupported
     SetPinlessPathSecureApduError
@@ -184,8 +184,6 @@ proc setPinlessPath*(
 
   let secureResult = card.sendSecure(
     ins = InsSetPinlessPath,
-    p1 = 0x00,
-    p2 = 0x00,
     data = data
   )
 
@@ -207,11 +205,11 @@ proc setPinlessPath*(
   case secureResult.sw
   of SwSuccess:
     return SetPinlessPathResult(success: true)
-  of 0x6A80:
+  of SwWrongData:
     return SetPinlessPathResult(success: false,
                                error: SetPinlessPathInvalidData,
                                sw: secureResult.sw)
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return SetPinlessPathResult(success: false,
                                error: SetPinlessPathConditionsNotMet,
                                sw: secureResult.sw)

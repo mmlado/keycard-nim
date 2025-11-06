@@ -5,11 +5,7 @@ import ../keycard
 import ../constants
 import ../secure_apdu
 import ../tlv
- 
-const
-  DeriveMaster* = 0x00'u8    # Derive from master key
-  DeriveParent* = 0x40'u8    # Derive from parent key
-  DeriveCurrent* = 0x80'u8   # Derive from current key
+import ../util
  
 type
   DerivationOption* = enum
@@ -25,9 +21,9 @@ type
   ExportKeyError* = enum
     ExportKeyOk
     ExportKeyTransportError
-    ExportKeyPrivateNotExportable  # SW 0x6985
-    ExportKeyInvalidPath           # SW 0x6A80
-    ExportKeyInvalidParams         # SW 0x6A86
+    ExportKeyPrivateNotExportable
+    ExportKeyInvalidPath
+    ExportKeyInvalidParams
     ExportKeyFailed
     ExportKeyCapabilityNotSupported  # Key management capability required
     ExportKeySecureApduError
@@ -44,15 +40,6 @@ type
     of false:
       error*: ExportKeyError
       sw*: uint16
- 
-proc encodeKeyPath(path: openArray[uint32]): seq[byte] =
-  result = newSeq[byte](path.len * 4)
-  for i, value in path:
-    let offset = i * 4
-    result[offset] = byte((value shr 24) and 0xFF)
-    result[offset + 1] = byte((value shr 16) and 0xFF)
-    result[offset + 2] = byte((value shr 8) and 0xFF)
-    result[offset + 3] = byte(value and 0xFF)
  
 proc exportKey*(
   card: var Keycard;
@@ -108,7 +95,7 @@ proc exportKey*(
   let data = if derivation == CurrentKey:
     @[]
   else:
-    encodeKeyPath(path)
+    encodeBip32Path(path)
  
   let secureResult = card.sendSecure(
     ins = InsExportKey,
@@ -135,15 +122,15 @@ proc exportKey*(
   case secureResult.sw
   of SwSuccess:
     discard
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return ExportKeyResult(success: false,
                           error: ExportKeyPrivateNotExportable,
                           sw: secureResult.sw)
-  of 0x6A80:
+  of SwWrongData:
     return ExportKeyResult(success: false,
                           error: ExportKeyInvalidPath,
                           sw: secureResult.sw)
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return ExportKeyResult(success: false,
                           error: ExportKeyInvalidParams,
                           sw: secureResult.sw)

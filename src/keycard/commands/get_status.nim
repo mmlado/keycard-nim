@@ -10,7 +10,7 @@ type
   GetStatusError* = enum
     GetStatusOk
     GetStatusTransportError
-    GetStatusUndefinedP1        # SW 0x6A86
+    GetStatusUndefinedP1
     GetStatusFailed
     GetStatusChannelNotOpen
     GetStatusSecureApduError
@@ -66,9 +66,7 @@ proc getStatus*(card: var Keycard; getKeyPath: bool = false): GetStatusResult =
 
   let secureResult = card.sendSecure(
     ins = InsGetStatus,
-    cla = ClaProprietary,
-    p1 = p1,
-    p2 = 0x00
+    p1 = p1
   )
 
   if not secureResult.success:
@@ -89,7 +87,7 @@ proc getStatus*(card: var Keycard; getKeyPath: bool = false): GetStatusResult =
   case secureResult.sw
   of SwSuccess:
     discard
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return GetStatusResult(success: false,
                           error: GetStatusUndefinedP1,
                           sw: secureResult.sw)

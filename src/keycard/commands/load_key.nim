@@ -15,8 +15,8 @@ type
   LoadKeyError* = enum
     LoadKeyOk
     LoadKeyTransportError
-    LoadKeyInvalidFormat        # SW 0x6A80
-    LoadKeyInvalidKeyType       # SW 0x6A86
+    LoadKeyInvalidFormat
+    LoadKeyInvalidKeyType
     LoadKeyFailed
     LoadKeyCapabilityNotSupported
     LoadKeySecureApduError
@@ -89,7 +89,6 @@ proc loadKey*(
   let secureResult = card.sendSecure(
     ins = InsLoadKey,
     p1 = byte(keyType),
-    p2 = 0x00,
     data = data
   )
 
@@ -111,15 +110,15 @@ proc loadKey*(
   case secureResult.sw
   of SwSuccess:
     return LoadKeyResult(success: true, keyUID: secureResult.data)
-  of 0x6A80:
+  of SwWrongData:
     return LoadKeyResult(success: false,
                         error: LoadKeyInvalidFormat,
                         sw: secureResult.sw)
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return LoadKeyResult(success: false,
                         error: LoadKeyInvalidKeyType,
                         sw: secureResult.sw)
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return LoadKeyResult(success: false,
                         error: LoadKeyConditionsNotMet,
                         sw: secureResult.sw)

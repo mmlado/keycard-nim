@@ -9,9 +9,9 @@ type
   UnblockPinError* = enum
     UnblockPinOk
     UnblockPinTransportError
-    UnblockPinInvalidFormat       # SW 0x6A80 - data not 18 bytes
-    UnblockPinWrongPuk            # SW 0x63CX - wrong PUK, X retries remaining
-    UnblockPinBlocked             # SW 0x63C0 - PUK is blocked
+    UnblockPinInvalidFormat
+    UnblockPinWrongPuk
+    UnblockPinBlocked
     UnblockPinFailed
     UnblockPinCapabilityNotSupported  # Credentials management capability required
     UnblockPinSecureApduError
@@ -71,16 +71,16 @@ proc unblockPin*(card: var Keycard; puk: string; newPin: string): UnblockPinResu
                            retriesRemaining: 0)
 
   # Validate format: PUK = 12 digits, PIN = 6 digits
-  if puk.len != 12:
+  if puk.len != PukLength:
     return UnblockPinResult(success: false,
                            error: UnblockPinInvalidFormat,
-                           sw: 0x6A80'u16,
+                           sw: SwWrongData,
                            retriesRemaining: 0)
 
-  if newPin.len != 6:
+  if newPin.len != PinLength:
     return UnblockPinResult(success: false,
                            error: UnblockPinInvalidFormat,
-                           sw: 0x6A80'u16,
+                           sw: SwWrongData,
                            retriesRemaining: 0)
 
   # Build data: PUK + new PIN
@@ -93,8 +93,6 @@ proc unblockPin*(card: var Keycard; puk: string; newPin: string): UnblockPinResu
   # Send UNBLOCK PIN command via secure channel
   let secureResult = card.sendSecure(
     ins = InsUnblockPin,
-    p1 = 0x00,
-    p2 = 0x00,
     data = data
   )
 
@@ -108,15 +106,15 @@ proc unblockPin*(card: var Keycard; puk: string; newPin: string): UnblockPinResu
   case secureResult.sw
   of SwSuccess:
     return UnblockPinResult(success: true)
-  of 0x6A80:
+  of SwWrongData:
     return UnblockPinResult(success: false,
                            error: UnblockPinInvalidFormat,
                            sw: secureResult.sw,
                            retriesRemaining: 0)
   else:
     # Check for 0x63CX (wrong PUK with retries)
-    if (secureResult.sw and 0xFFF0'u16) == 0x63C0'u16:
-      let retries = int(secureResult.sw and 0x000F'u16)
+    if (secureResult.sw and SwVerificationFailedMask) == SwVerificationFailed:
+      let retries = int(secureResult.sw and SwRetryCounterMask)
       if retries == 0:
         # PUK is blocked
         return UnblockPinResult(success: false,

@@ -9,8 +9,8 @@ type
   UnpairError* = enum
     UnpairOk
     UnpairTransportError
-    UnpairSecurityConditionsNotMet  # SW 0x6985
-    UnpairInvalidIndex              # SW 0x6A86
+    UnpairSecurityConditionsNotMet
+    UnpairInvalidIndex
     UnpairFailed
     UnpairChannelNotOpen
     UnpairSecureApduError
@@ -53,9 +53,7 @@ proc unpair*(card: var Keycard; pairingIndex: byte): UnpairResult =
 
   let secureResult = card.sendSecure(
     ins = InsUnpair,
-    cla = ClaProprietary,
-    p1 = pairingIndex,
-    p2 = 0x00
+    p1 = pairingIndex
   )
 
   if not secureResult.success:
@@ -76,11 +74,11 @@ proc unpair*(card: var Keycard; pairingIndex: byte): UnpairResult =
   case secureResult.sw
   of SwSuccess:
     return UnpairResult(success: true)
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return UnpairResult(success: false,
                        error: UnpairSecurityConditionsNotMet,
                        sw: secureResult.sw)
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return UnpairResult(success: false,
                        error: UnpairInvalidIndex,
                        sw: secureResult.sw)

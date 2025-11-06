@@ -12,11 +12,11 @@ type
   PairError* = enum
     PairOk
     PairTransportError
-    PairInvalidP1          # SW 0x6A86
-    PairInvalidData        # SW 0x6A80
-    PairCryptogramFailed   # SW 0x6982
-    PairSlotsFull          # SW 0x6A84
-    PairSecureChannelOpen  # SW 0x6985
+    PairInvalidP1
+    PairInvalidData
+    PairCryptogramFailed
+    PairSlotsFull
+    PairSecureChannelOpen
     PairFailed
     PairNotInitialized
     PairInvalidResponse
@@ -75,11 +75,11 @@ proc pair*(card: var Keycard;
   case step1Resp.sw
   of SwSuccess:
     discard
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return PairResult(success: false,
                      error: PairInvalidP1,
                      sw: step1Resp.sw)
-  of 0x6A80:
+  of SwWrongData:
     return PairResult(success: false,
                      error: PairInvalidData,
                      sw: step1Resp.sw)
@@ -87,7 +87,7 @@ proc pair*(card: var Keycard;
     return PairResult(success: false,
                      error: PairSlotsFull,
                      sw: step1Resp.sw)
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return PairResult(success: false,
                      error: PairSecureChannelOpen,
                      sw: step1Resp.sw)
@@ -147,11 +147,11 @@ proc pair*(card: var Keycard;
   case step2Resp.sw
   of SwSuccess:
     discard
-  of 0x6982:
+  of SwSecurityStatusNotSatisfied:
     return PairResult(success: false,
                      error: PairCryptogramFailed,
                      sw: step2Resp.sw)
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return PairResult(success: false,
                      error: PairInvalidP1,
                      sw: step2Resp.sw)

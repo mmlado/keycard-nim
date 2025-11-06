@@ -4,13 +4,14 @@
 import ../keycard
 import ../constants
 import ../secure_apdu
+import ../util
 
 type
   VerifyPinError* = enum
     VerifyPinOk
     VerifyPinTransportError
-    VerifyPinBlocked            # SW 0x63C0 - PIN is blocked
-    VerifyPinIncorrect          # SW 0x63CX - Wrong PIN, X retries remaining
+    VerifyPinBlocked
+    VerifyPinIncorrect
     VerifyPinFailed
     VerifyPinChannelNotOpen
     VerifyPinSecureApduError
@@ -35,13 +36,6 @@ proc verifyPin*(card: var Keycard; pin: string): VerifyPinResult =
   ##
   ## This command is sent as an encrypted/MAC'd secure APDU.
   ##
-  ## VERIFY PIN APDU:
-  ##   CLA = 0x80
-  ##   INS = 0x20
-  ##   P1 = 0x00
-  ##   P2 = 0x00
-  ##   Data = PIN bytes
-  ##
   ## Response SW (in decrypted response):
   ##   0x9000 on success (PIN verified, retry counter reset)
   ##   0x63CX on failure, where X is the number of attempts remaining
@@ -54,14 +48,11 @@ proc verifyPin*(card: var Keycard; pin: string): VerifyPinResult =
                           retriesRemaining: 0)
 
   # Convert PIN string to bytes
-  let pinBytes = cast[seq[byte]](pin)
+  let pinBytes = stringToBytes(pin)
 
   # Send VERIFY PIN command as secure APDU
   let secureResult = card.sendSecure(
     ins = InsVerifyPin,
-    cla = ClaProprietary,
-    p1 = 0x00,
-    p2 = 0x00,
     data = pinBytes
   )
 
@@ -88,8 +79,8 @@ proc verifyPin*(card: var Keycard; pin: string): VerifyPinResult =
     return VerifyPinResult(success: true)
   else:
     # Check if it's a 0x63CX response (incorrect PIN with retries)
-    if (secureResult.sw and 0xFFF0'u16) == 0x63C0'u16:
-      let retries = int(secureResult.sw and 0x000F'u16)
+    if (secureResult.sw and SwVerificationFailedMask) == SwVerificationFailed:
+      let retries = int(secureResult.sw and SwRetryCounterMask)
 
       if retries == 0:
         # PIN is blocked

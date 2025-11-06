@@ -6,13 +6,14 @@ import ../constants
 import ../apdu
 import ../transport
 import ../crypto/utils
+import ../util
 
 type
   InitError* = enum
     InitOk
     InitTransportError
-    InitAlreadyInitialized  # SW 0x6D00
-    InitInvalidData         # SW 0x6A80
+    InitAlreadyInitialized
+    InitInvalidData
     InitFailed
     InitNotSelected
 
@@ -48,13 +49,14 @@ proc init*(card: var Keycard;
   if card.publicKey.len == 0:
     return InitResult(success: false, error: InitNotSelected, sw: 0)
   
-  if pin.len != 6:
+  if pin.len != PinLength:
     return InitResult(success: false, error: InitInvalidData, sw: 0)
-  if puk.len != 12:
+  if puk.len != PukLength:
     return InitResult(success: false, error: InitInvalidData, sw: 0)
   
-  let pinBytes = cast[seq[byte]](pin)
-  let pukBytes = cast[seq[byte]](puk)
+  var pinBytes = stringToBytes(pin)
+  var pukBytes = stringToBytes(puk)
+  
   let pairingBytes = generatePairingToken(pairingSecret)
   
   let (ephemeralPrivate, ephemeralPublic) = generateEcdhKeypair()
@@ -92,9 +94,9 @@ proc init*(card: var Keycard;
   case resp.sw
   of SwSuccess:
     return InitResult(success: true)
-  of 0x6D00:
+  of SwInsNotSupported:
     return InitResult(success: false, error: InitAlreadyInitialized, sw: resp.sw)
-  of 0x6A80:
+  of SwWrongData:
     return InitResult(success: false, error: InitInvalidData, sw: resp.sw)
   else:
     return InitResult(success: false, error: InitFailed, sw: resp.sw)

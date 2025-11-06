@@ -35,6 +35,25 @@ const
   # Status words
   SwSuccess* = 0x9000'u16
   
+  # Wrong length / Invalid data (0x6A family)
+  SwWrongData* = 0x6A80'u16              # Wrong data / Invalid data format
+  SwFunctionNotSupported* = 0x6A81'u16   # Function not supported
+  SwNotEnoughMemory* = 0x6A84'u16        # Not enough memory / No space
+  SwIncorrectP1P2* = 0x6A86'u16          # Incorrect parameters P1-P2
+  SwReferencedDataNotFound* = 0x6A88'u16 # Referenced data not found
+  
+  # Security related (0x69 family)
+  SwSecurityStatusNotSatisfied* = 0x6982'u16  # Security condition not satisfied
+  SwConditionsNotSatisfied* = 0x6985'u16      # Conditions of use not satisfied
+  
+  # Instruction related (0x6D family)
+  SwInsNotSupported* = 0x6D00'u16  # Instruction not supported / Already initialized
+  
+  # Verification (0x63 family)
+  SwVerificationFailed* = 0x63C0'u16      # Verification failed (base, counter in lower nibble)
+  SwVerificationFailedMask* = 0xFFF0'u16  # Mask to check for verification failed status
+  SwRetryCounterMask* = 0x000F'u16        # Mask to extract retry counter
+
   # BER-TLV Tags for SELECT response
   TagApplicationInfo* = 0xA4'u8
   TagInstanceUid* = 0x8F'u8
@@ -42,6 +61,37 @@ const
   TagAppVersion* = 0x02'u8
   TagKeyUid* = 0x8E'u8
   TagCapabilities* = 0x8D'u8
+
+  # Derivation source constants (can be OR'd with P1)
+  # Used by SIGN, EXPORT KEY, and DERIVE KEY commands
+  DeriveMaster* = 0x00'u8    # Derive from master key
+  DeriveParent* = 0x40'u8    # Derive from parent key
+  DeriveCurrent* = 0x80'u8   # Derive from current key
+
+  # Cryptographic sizes
+  AesKeySize* = 32           # AES-256 key size in bytes
+  AesBlockSize* = 16         # AES block/IV size in bytes
+  AesMacSize* = 16           # AES-CBC-MAC output size in bytes
+  
+  Sha256Size* = 32           # SHA-256 output size in bytes
+  Sha512Size* = 64           # SHA-512 output size in bytes
+  
+  Secp256k1PrivateKeySize* = 32      # secp256k1 private key size
+  Secp256k1CoordinateSize* = 32      # secp256k1 point coordinate size (x or y)
+  Secp256k1UncompressedSize* = 65    # Uncompressed public key (0x04 + x + y)
+  Secp256k1SignatureSize* = 64       # ECDSA signature size (r + s, without recovery id)
+  
+  Bip39SeedSize* = 64        # BIP39 seed size in bytes
+  Bip32ChainCodeSize* = 32   # BIP32 chain code size in bytes
+  
+  # Credential sizes
+  PinLength* = 6             # PIN must be 6 digits
+  PukLength* = 12            # PUK must be 12 digits
+  PairingSecretLength* = 32  # Pairing Secred 
+  
+  # Other crypto constants
+  PairingPbkdf2Iterations* = 50000   # PBKDF2 iterations for pairing token
+  DerIntegerMaxSize* = 33            # Max DER integer encoding (32 + sign byte)
 
 type
   # Capability flags (bitwise OR)

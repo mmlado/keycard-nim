@@ -34,6 +34,9 @@ import keycard/commands/unpair
 import keycard/commands/sign
 import keycard/commands/store_data
 import keycard/secure_apdu
+import keycard/commands/load_key
+import keycard/commands/generate_mnemonic
+import keycard/commands/set_pinless_path
 
 export keycard
 export transport
@@ -59,3 +62,6 @@ export unpair
 export sign
 export store_data
 export secure_apdu
+export load_key
+export generate_mnemonic
+export set_pinless_path

@@ -127,7 +127,7 @@ suite "MUTUALLY AUTHENTICATE command":
 
       check not result.success
       check result.error == MutuallyAuthenticateFailed
-      check result.sw == 0x6982'u16
+      check result.sw == SwSecurityStatusNotSatisfied
       # Secure channel should be closed on error
       check not card.secureChannel.open
 
@@ -150,7 +150,7 @@ suite "MUTUALLY AUTHENTICATE command":
 
       check not result.success
       check result.error == MutuallyAuthenticateNotAfterOpen
-      check result.sw == 0x6985'u16
+      check result.sw == SwConditionsNotSatisfied
       # Secure channel should be closed on error
       check not card.secureChannel.open
 

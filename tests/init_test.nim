@@ -146,7 +146,7 @@ suite "INIT command":
 
       check not result.success
       check result.error == InitAlreadyInitialized
-      check result.sw == 0x6D00'u16
+      check result.sw == SwInsNotSupported
 
     test "init handles invalid data error from card":
       let t = newTransport()
@@ -164,7 +164,7 @@ suite "INIT command":
 
       check not result.success
       check result.error == InitInvalidData
-      check result.sw == 0x6A80'u16
+      check result.sw == SwWrongData
 
     test "init handles generic failed status":
       let t = newTransport()

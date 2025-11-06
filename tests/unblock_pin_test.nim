@@ -61,7 +61,7 @@ suite "UNBLOCK PIN command":
 
       check not result.success
       check result.error == UnblockPinInvalidFormat
-      check result.sw == 0x6A80'u16
+      check result.sw == SwWrongData
 
       # No APDU should be sent
       let tx = t.mockCard().mockTxLog()
@@ -84,7 +84,7 @@ suite "UNBLOCK PIN command":
 
       check not result.success
       check result.error == UnblockPinInvalidFormat
-      check result.sw == 0x6A80'u16
+      check result.sw == SwWrongData
 
       # No APDU should be sent
       let tx = t.mockCard().mockTxLog()

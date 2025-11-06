@@ -12,8 +12,8 @@ type
     MutuallyAuthenticateOk
     MutuallyAuthenticateTransportError
     MutuallyAuthenticateChannelNotOpen
-    MutuallyAuthenticateFailed         # SW 0x6982
-    MutuallyAuthenticateNotAfterOpen   # SW 0x6985
+    MutuallyAuthenticateFailed
+    MutuallyAuthenticateNotAfterOpen
     MutuallyAuthenticateMacVerifyFailed
     MutuallyAuthenticateInvalidResponse
 
@@ -97,13 +97,13 @@ proc mutuallyAuthenticate*(card: var Keycard): MutuallyAuthenticateResult =
 
   let mutualAuthResp = mutualAuthResult.value
 
-  if mutualAuthResp.sw == 0x6982:
+  if mutualAuthResp.sw == SwSecurityStatusNotSatisfied:
     card.secureChannel.open = false
     return MutuallyAuthenticateResult(success: false,
                                       error: MutuallyAuthenticateFailed,
                                       sw: mutualAuthResp.sw)
 
-  if mutualAuthResp.sw == 0x6985:
+  if mutualAuthResp.sw == SwConditionsNotSatisfied:
     card.secureChannel.open = false
     return MutuallyAuthenticateResult(success: false,
                                       error: MutuallyAuthenticateNotAfterOpen,

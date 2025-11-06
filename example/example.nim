@@ -241,12 +241,7 @@ proc main() =
   # Change PIN (demonstrate CHANGE PIN command)
   echo "\nChanging PIN from ", PIN, " to ", NEW_PIN, "..."
 
-  # Convert PIN string to bytes
-  var newPinBytes: seq[byte] = @[]
-  for c in NEW_PIN:
-    newPinBytes.add(byte(c))
-
-  let changePinResult = card.changePin(UserPin, newPinBytes)
+  let changePinResult = card.changePin(UserPin, NEW_PIN)
 
   if changePinResult.success:
     echo "PIN changed successfully!"

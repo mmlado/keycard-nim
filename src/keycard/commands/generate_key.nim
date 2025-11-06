@@ -61,7 +61,7 @@ proc generateKey*(card: var Keycard): GenerateKeyResult =
   case secureResult.sw
   of SwSuccess:
     return GenerateKeyResult(success: true, keyUID: secureResult.data)
-  of 0x6985:
+  of SwConditionsNotSatisfied:
     return GenerateKeyResult(success: false,
                             error: GenerateKeyConditionsNotMet,
                             sw: secureResult.sw)

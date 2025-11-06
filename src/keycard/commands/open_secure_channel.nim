@@ -12,8 +12,8 @@ type
   OpenSecureChannelError* = enum
     OpenSecureChannelOk
     OpenSecureChannelTransportError
-    OpenSecureChannelInvalidP1     # SW 0x6A86
-    OpenSecureChannelInvalidData   # SW 0x6A80
+    OpenSecureChannelInvalidP1
+    OpenSecureChannelInvalidData
     OpenSecureChannelFailed
     OpenSecureChannelNotSelected
     OpenSecureChannelInvalidResponse
@@ -79,11 +79,11 @@ proc openSecureChannel*(card: var Keycard;
   case resp.sw
   of SwSuccess:
     discard
-  of 0x6A86:
+  of SwIncorrectP1P2:
     return OpenSecureChannelResult(success: false,
                                    error: OpenSecureChannelInvalidP1,
                                    sw: resp.sw)
-  of 0x6A80:
+  of SwWrongData:
     return OpenSecureChannelResult(success: false,
                                    error: OpenSecureChannelInvalidData,
                                    sw: resp.sw)

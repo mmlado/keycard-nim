@@ -120,7 +120,7 @@ suite "IDENT command":
 
       check not result.success
       check result.error == IdentInvalidFormat
-      check result.sw == 0x6A80'u16
+      check result.sw == SwWrongData
 
     test "ident handles transport error":
       let t = newTransport()
