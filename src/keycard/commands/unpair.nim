@@ -57,16 +57,12 @@ proc unpair*(card: var Keycard; pairingIndex: byte): UnpairResult =
   )
 
   if not secureResult.success:
-    let unpairError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        UnpairChannelNotOpen
-      of SecureApduTransportError:
-        UnpairTransportError
-      of SecureApduInvalidMac:
-        UnpairSecureApduError
-      else:
-        UnpairSecureApduError
-
+    let unpairError = mapSecureApduError(
+      secureResult.error,
+      UnpairChannelNotOpen,
+      UnpairTransportError,
+      UnpairSecureApduError
+    )
     return UnpairResult(success: false,
                        error: unpairError,
                        sw: 0)

@@ -58,16 +58,12 @@ proc verifyPin*(card: var Keycard; pin: string): VerifyPinResult =
 
   if not secureResult.success:
     # Map secure APDU error to verify pin error
-    let verifyError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        VerifyPinChannelNotOpen
-      of SecureApduTransportError:
-        VerifyPinTransportError
-      of SecureApduInvalidMac:
-        VerifyPinSecureApduError
-      else:
-        VerifyPinSecureApduError
-
+    let verifyError = mapSecureApduError(
+      secureResult.error,
+      VerifyPinChannelNotOpen,
+      VerifyPinTransportError,
+      VerifyPinSecureApduError
+    )
     return VerifyPinResult(success: false,
                           error: verifyError,
                           sw: 0,

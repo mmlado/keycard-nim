@@ -64,15 +64,8 @@ proc loadKey*(
   ##   - Loaded key becomes current key for signing
   ##   - BIP39 seed only supported if hardware supports public key derivation
 
-  if not card.appInfo.hasKeyManagement():
-    return LoadKeyResult(success: false,
-                        error: LoadKeyCapabilityNotSupported,
-                        sw: 0)
-
-  if not card.secureChannel.open:
-    return LoadKeyResult(success: false,
-                        error: LoadKeyChannelNotOpen,
-                        sw: 0)
+  checkCapability(card, card.appInfo.hasKeyManagement(), LoadKeyResult, LoadKeyCapabilityNotSupported)
+  checkSecureChannelOpen(card, LoadKeyResult, LoadKeyChannelNotOpen)
 
   # Build the key data based on key type
   let data = case keyType
@@ -93,16 +86,12 @@ proc loadKey*(
   )
 
   if not secureResult.success:
-    let loadError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        LoadKeyChannelNotOpen
-      of SecureApduTransportError:
-        LoadKeyTransportError
-      of SecureApduInvalidMac:
-        LoadKeySecureApduError
-      else:
-        LoadKeySecureApduError
-
+    let loadError = mapSecureApduError(
+      secureResult.error,
+      LoadKeyChannelNotOpen,
+      LoadKeyTransportError,
+      LoadKeySecureApduError
+    )
     return LoadKeyResult(success: false,
                         error: loadError,
                         sw: 0)

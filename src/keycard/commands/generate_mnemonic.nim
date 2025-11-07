@@ -88,16 +88,12 @@ proc generateMnemonic*(
   )
 
   if not secureResult.success:
-    let mnemonicError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        GenerateMnemonicChannelNotOpen
-      of SecureApduTransportError:
-        GenerateMnemonicTransportError
-      of SecureApduInvalidMac:
-        GenerateMnemonicSecureApduError
-      else:
-        GenerateMnemonicSecureApduError
-
+    let mnemonicError = mapSecureApduError(
+      secureResult.error,
+      GenerateMnemonicChannelNotOpen,
+      GenerateMnemonicTransportError,
+      GenerateMnemonicSecureApduError
+    )
     return GenerateMnemonicResult(success: false,
                                   error: mnemonicError,
                                   sw: 0)

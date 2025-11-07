@@ -62,16 +62,12 @@ proc storeData*(card: var Keycard; dataType: DataType; data: seq[byte]): StoreDa
   )
 
   if not secureResult.success:
-    let storeError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        StoreDataChannelNotOpen
-      of SecureApduTransportError:
-        StoreDataTransportError
-      of SecureApduInvalidMac:
-        StoreDataSecureApduError
-      else:
-        StoreDataSecureApduError
-
+    let storeError = mapSecureApduError(
+      secureResult.error,
+      StoreDataChannelNotOpen,
+      StoreDataTransportError,
+      StoreDataSecureApduError
+    )
     return StoreDataResult(success: false,
                           error: storeError,
                           sw: 0)

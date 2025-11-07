@@ -39,15 +39,8 @@ proc generateKey*(card: var Keycard): GenerateKeyResult =
   ##
   ## After execution, the card state is the same as if LOAD KEY was performed.
 
-  if not card.appInfo.hasKeyManagement():
-    return GenerateKeyResult(success: false,
-                            error: GenerateKeyCapabilityNotSupported,
-                            sw: 0)
-
-  if not card.secureChannel.open:
-    return GenerateKeyResult(success: false,
-                            error: GenerateKeyChannelNotOpen,
-                            sw: 0)
+  checkCapability(card, card.appInfo.hasKeyManagement(), GenerateKeyResult, GenerateKeyCapabilityNotSupported)
+  checkSecureChannelOpen(card, GenerateKeyResult, GenerateKeyChannelNotOpen)
 
   let secureResult = card.sendSecure(
     ins = InsGenerateKey,

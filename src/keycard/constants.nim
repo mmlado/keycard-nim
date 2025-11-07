@@ -98,7 +98,8 @@ const
   
   # TLV Tags
   TagSignatureTemplate* = 0xA0'u8    # Signature template
-  TagKeypairTemplate* = 0xA1'u8      # Keypair template  
+  TagKeypairTemplate* = 0xA1'u8      # Keypair template
+  TagApplicationStatusTemplate* = 0xA3'u8  # Application status template
   TagTlvPublicKey* = 0x80'u8         # Public key in TLV template
   TagTlvPrivateKey* = 0x81'u8        # Private key in TLV template
   TagTlvChainCode* = 0x82'u8         # Chain code in TLV template
@@ -106,6 +107,9 @@ const
   
   # ISO/IEC 9797-1 Method 2 padding
   IsoPaddingMarker* = 0x80'u8        # Padding marker byte
+
+  # Status values
+  KeyInitializedMarker* = 0xFF'u8    # Value indicating key is initialized
   
   # BIP32 constants
   Bip32HardenedBit* = 0x8000_0000'u32  # Hardened derivation bit

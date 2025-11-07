@@ -188,16 +188,12 @@ proc setPinlessPath*(
   )
 
   if not secureResult.success:
-    let pathError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        SetPinlessPathChannelNotOpen
-      of SecureApduTransportError:
-        SetPinlessPathTransportError
-      of SecureApduInvalidMac:
-        SetPinlessPathSecureApduError
-      else:
-        SetPinlessPathSecureApduError
-
+    let pathError = mapSecureApduError(
+      secureResult.error,
+      SetPinlessPathChannelNotOpen,
+      SetPinlessPathTransportError,
+      SetPinlessPathSecureApduError
+    )
     return SetPinlessPathResult(success: false,
                                error: pathError,
                                sw: 0)

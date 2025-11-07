@@ -70,16 +70,12 @@ proc getStatus*(card: var Keycard; getKeyPath: bool = false): GetStatusResult =
   )
 
   if not secureResult.success:
-    let statusError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        GetStatusChannelNotOpen
-      of SecureApduTransportError:
-        GetStatusTransportError
-      of SecureApduInvalidMac:
-        GetStatusSecureApduError
-      else:
-        GetStatusSecureApduError
-
+    let statusError = mapSecureApduError(
+      secureResult.error,
+      GetStatusChannelNotOpen,
+      GetStatusTransportError,
+      GetStatusSecureApduError
+    )
     return GetStatusResult(success: false,
                           error: statusError,
                           sw: 0)
@@ -113,7 +109,7 @@ proc getStatus*(card: var Keycard; getKeyPath: bool = false): GetStatusResult =
                           keyPath: keyPath)
   else:
     let tags = parseTlv(secureResult.data)
-    let statusTemplate = findTag(tags, 0xA3)
+    let statusTemplate = findTag(tags, TagApplicationStatusTemplate)
 
     if statusTemplate.len == 0:
       return GetStatusResult(success: false,
@@ -149,5 +145,5 @@ proc getStatus*(card: var Keycard; getKeyPath: bool = false): GetStatusResult =
                           appStatus: ApplicationStatus(
                             pinRetryCount: pinRetry,
                             pukRetryCount: pukRetry,
-                            keyInitialized: keyInit == 0xff
+                            keyInitialized: keyInit == KeyInitializedMarker
                           ))

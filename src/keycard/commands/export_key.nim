@@ -78,15 +78,8 @@ proc exportKey*(
   ##     Tag 0x81 = ECC private key component (if exportOpt=PrivateAndPublic)
   ##     Tag 0x82 = Chain code (if exportOpt=ExtendedPublic)
  
-  if not card.appInfo.hasKeyManagement():
-    return ExportKeyResult(success: false,
-                          error: ExportKeyCapabilityNotSupported,
-                          sw: 0)
- 
-  if not card.secureChannel.open:
-    return ExportKeyResult(success: false,
-                          error: ExportKeyChannelNotOpen,
-                          sw: 0)
+  checkCapability(card, card.appInfo.hasKeyManagement(), ExportKeyResult, ExportKeyCapabilityNotSupported)
+  checkSecureChannelOpen(card, ExportKeyResult, ExportKeyChannelNotOpen)
  
   let p1 = byte(derivation) or deriveSource
  
@@ -105,16 +98,12 @@ proc exportKey*(
   )
  
   if not secureResult.success:
-    let exportError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        ExportKeyChannelNotOpen
-      of SecureApduTransportError:
-        ExportKeyTransportError
-      of SecureApduInvalidMac:
-        ExportKeySecureApduError
-      else:
-        ExportKeySecureApduError
- 
+    let exportError = mapSecureApduError(
+      secureResult.error,
+      ExportKeyChannelNotOpen,
+      ExportKeyTransportError,
+      ExportKeySecureApduError
+    )
     return ExportKeyResult(success: false,
                           error: exportError,
                           sw: 0)

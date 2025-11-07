@@ -146,16 +146,10 @@ proc sign*(
                     error: SignDataTooShort,
                     sw: SwWrongData)
 
-  if not card.appInfo.hasKeyManagement():
-    return SignResult(success: false,
-                    error: SignCapabilityNotSupported,
-                    sw: 0)
+  checkCapability(card, card.appInfo.hasKeyManagement(), SignResult, SignCapabilityNotSupported)
 
   if derivation != SignPinlessPath:
-    if not card.secureChannel.open:
-      return SignResult(success: false,
-                      error: SignChannelNotOpen,
-                      sw: 0)
+    checkSecureChannelOpen(card, SignResult, SignChannelNotOpen)
 
 
   let p1 = byte(derivation) or deriveSource
@@ -174,16 +168,12 @@ proc sign*(
   )
 
   if not secureResult.success:
-    let signError = case secureResult.error
-      of SecureApduChannelNotOpen:
-        SignChannelNotOpen
-      of SecureApduTransportError:
-        SignTransportError
-      of SecureApduInvalidMac:
-        SignSecureApduError
-      else:
-        SignSecureApduError
-
+    let signError = mapSecureApduError(
+      secureResult.error,
+      SignChannelNotOpen,
+      SignTransportError,
+      SignSecureApduError
+    )
     return SignResult(success: false,
                      error: signError,
                      sw: 0)

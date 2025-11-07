@@ -32,6 +32,19 @@ type
       error*: PairError
       sw*: uint16
 
+proc computeCryptogram(data1: seq[byte], data2: seq[byte]): seq[byte] =
+  ## Compute SHA-256 hash of concatenated data
+  ## Used for card/client cryptogram and pairing key derivation
+  var combined: seq[byte] = @[]
+  combined.add(data1)
+  combined.add(data2)
+
+  var ctx: sha256
+  ctx.init()
+  ctx.update(combined)
+  let hash = ctx.finish()
+  result = @(hash.data)
+
 proc pair*(card: var Keycard;
            pairingPassword: string): PairResult =
   ## Pair with the card to establish a pairing slot (two-step process)
@@ -83,7 +96,7 @@ proc pair*(card: var Keycard;
     return PairResult(success: false,
                      error: PairInvalidData,
                      sw: step1Resp.sw)
-  of 0x6A84:
+  of SwNotEnoughMemory:
     return PairResult(success: false,
                      error: PairSlotsFull,
                      sw: step1Resp.sw)
@@ -104,31 +117,15 @@ proc pair*(card: var Keycard;
   let cardCryptogram = step1Resp.data[0..<Sha256Size]
   let cardChallenge = step1Resp.data[Sha256Size..<(Sha256Size * 2)]
 
-  var expectedCardCryptogram: seq[byte] = @[]
-  expectedCardCryptogram.add(sharedSecret)
-  expectedCardCryptogram.add(clientChallenge)
-
-  var ctx: sha256
-  ctx.init()
-  ctx.update(expectedCardCryptogram)
-  let expectedHash = ctx.finish()
-  let expectedCardCryptogramBytes = @(expectedHash.data)
-
-  if cardCryptogram != expectedCardCryptogramBytes:
+  # Verify card cryptogram
+  let expectedCardCryptogram = computeCryptogram(sharedSecret, clientChallenge)
+  if cardCryptogram != expectedCardCryptogram:
     return PairResult(success: false,
                      error: PairCardAuthFailed,
                      sw: 0)
 
   # Step 2: Send client cryptogram
-  var clientCryptogramData: seq[byte] = @[]
-  clientCryptogramData.add(sharedSecret)
-  clientCryptogramData.add(cardChallenge)
-
-  var ctx2: sha256
-  ctx2.init()
-  ctx2.update(clientCryptogramData)
-  let clientCryptogramHash = ctx2.finish()
-  let clientCryptogram = @(clientCryptogramHash.data)
+  let clientCryptogram = computeCryptogram(sharedSecret, cardChallenge)
 
   let step2Result = card.transport.send(
     ins = InsPair,
@@ -168,15 +165,8 @@ proc pair*(card: var Keycard;
   let pairingIndex = step2Resp.data[0]
   let salt = step2Resp.data[1..<33]
 
-  var pairingKeyData: seq[byte] = @[]
-  pairingKeyData.add(sharedSecret)
-  pairingKeyData.add(salt)
-
-  var ctx3: sha256
-  ctx3.init()
-  ctx3.update(pairingKeyData)
-  let pairingKeyHash = ctx3.finish()
-  let pairingKey = @(pairingKeyHash.data)
+  # Derive pairing key
+  let pairingKey = computeCryptogram(sharedSecret, salt)
 
   PairResult(success: true,
              pairingIndex: pairingIndex,

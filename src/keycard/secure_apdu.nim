@@ -93,6 +93,39 @@ proc decryptResponse*(card: var Keycard; response: seq[byte]): SecureApduResult 
 
   SecureApduResult(success: true, data: data, sw: sw)
 
+template mapSecureApduError*[T](secureError: SecureApduError;
+                               channelNotOpenError: T;
+                               transportError: T;
+                               secureApduError: T): T =
+  ## Helper template to map SecureApduError to command-specific error types
+  ## This eliminates code duplication across command implementations
+  case secureError
+  of SecureApduChannelNotOpen:
+    channelNotOpenError
+  of SecureApduTransportError:
+    transportError
+  of SecureApduInvalidMac:
+    secureApduError
+  else:
+    secureApduError
+
+template checkSecureChannelOpen*[R](card: Keycard; resultType: typedesc[R];
+                                    channelNotOpenError: auto): untyped =
+  ## Helper template to check if secure channel is open
+  ## Returns early with error if channel is not open
+  ## Usage: checkSecureChannelOpen(card, SignResult, SignChannelNotOpen)
+  if not card.secureChannel.open:
+    return resultType(success: false, error: channelNotOpenError, sw: 0)
+ 
+template checkCapability*[R](card: Keycard; hasCapability: bool;
+                             resultType: typedesc[R];
+                             capabilityError: auto): untyped =
+  ## Helper template to check if card has required capability
+  ## Returns early with error if capability is not supported
+  ## Usage: checkCapability(card, card.appInfo.hasKeyManagement(), SignResult, SignCapabilityNotSupported)
+  if not hasCapability:
+    return resultType(success: false, error: capabilityError, sw: 0)
+
 proc sendSecure*(card: var Keycard;
                  ins: byte;
                  cla: byte = ClaProprietary;

@@ -21,8 +21,7 @@ proc generateEcdhKeypair*(): tuple[privateKey: seq[byte], publicKey: seq[byte]] 
     raise newException(OSError, "Failed to generate random bytes")
   
   var skArray: array[Secp256k1PrivateKeySize, byte]
-  for i in 0..<Secp256k1PrivateKeySize:
-    skArray[i] = privateKeyBytes[i]
+  copyMem(addr skArray[0], addr privateKeyBytes[0], Secp256k1PrivateKeySize)
   
   let skResult = SkSecretKey.fromRaw(skArray)
   if skResult.isErr:
@@ -47,8 +46,8 @@ proc ecdhKeypairFromHex*(privateKeyHex: string): tuple[privateKey: seq[byte], pu
     raise newException(ValueError, "Private key must be " & $Secp256k1PrivateKeySize & " bytes (64 hex chars)")
   
   var skArray: array[Secp256k1PrivateKeySize, byte]
-  for i in 0..<Secp256k1PrivateKeySize:
-    skArray[i] = cast[seq[byte]](privateKeyBytes)[i]
+  let privateKeySeq = cast[seq[byte]](privateKeyBytes)
+  copyMem(addr skArray[0], unsafeAddr privateKeySeq[0], Secp256k1PrivateKeySize)
   
   let skResult = SkSecretKey.fromRaw(skArray)
   if skResult.isErr:
@@ -72,8 +71,7 @@ proc ecdhSharedSecret*(privateKey: seq[byte], cardPublicKey: seq[byte]): seq[byt
   ## We need to match that behavior for compatibility.
   
   var skArray: array[Secp256k1PrivateKeySize, byte]
-  for i in 0..<Secp256k1PrivateKeySize:
-    skArray[i] = privateKey[i]
+  copyMem(addr skArray[0], unsafeAddr privateKey[0], Secp256k1PrivateKeySize)
   
   let sk = SkSecretKey.fromRaw(skArray).get()
   let pk = SkPublicKey.fromRaw(cardPublicKey).get()
@@ -113,10 +111,8 @@ proc aesCbcEncrypt*(key: seq[byte], iv: seq[byte], plaintext: seq[byte]): seq[by
   var ivArray: array[AesBlockSize, byte]
   
   # Copy key and IV to fixed-size arrays
-  for i in 0..<AesKeySize:
-    keyArray[i] = key[i]
-  for i in 0..<AesBlockSize:
-    ivArray[i] = iv[i]
+  copyMem(addr keyArray[0], unsafeAddr key[0], AesKeySize)
+  copyMem(addr ivArray[0], unsafeAddr iv[0], AesBlockSize)
   
   # Initialize CBC mode
   ctx.init(keyArray, ivArray)
@@ -143,10 +139,8 @@ proc aesCbcDecrypt*(key: seq[byte], iv: seq[byte], ciphertext: seq[byte]): seq[b
   var ivArray: array[AesBlockSize, byte]
   
   # Copy key and IV to fixed-size arrays
-  for i in 0..<AesKeySize:
-    keyArray[i] = key[i]
-  for i in 0..<AesBlockSize:
-    ivArray[i] = iv[i]
+  copyMem(addr keyArray[0], unsafeAddr key[0], AesKeySize)
+  copyMem(addr ivArray[0], unsafeAddr iv[0], AesBlockSize)
   
   # Initialize CBC mode
   ctx.init(keyArray, ivArray)
@@ -231,12 +225,10 @@ proc aesCbcMac*(key: seq[byte], data: seq[byte], padding: bool = false): seq[byt
   var ivArray: array[AesBlockSize, byte]
 
   # Copy key to fixed-size array
-  for i in 0..<AesKeySize:
-    keyArray[i] = key[i]
+  copyMem(addr keyArray[0], unsafeAddr key[0], AesKeySize)
 
   # Initialize with zero IV
-  for i in 0..<AesBlockSize:
-    ivArray[i] = 0
+  zeroMem(addr ivArray[0], AesBlockSize)
 
   # Initialize CBC mode
   ctx.init(keyArray, ivArray)
