@@ -63,7 +63,7 @@ proc init*(card: var Keycard;
   
   let sharedSecret = ecdhSharedSecret(ephemeralPrivate, card.publicKey)
   
-  let iv = generateRandomBytes(16)
+  let iv = generateRandomBytes(AesBlockSize)
   
   var payload: seq[byte] = @[]
   payload.add(pinBytes)
@@ -78,7 +78,7 @@ proc init*(card: var Keycard;
   data.add(iv)
   data.add(ciphertext)
   
-  if data.len > 255:
+  if data.len > MaxApduDataLength:
     return InitResult(success: false, error: InitInvalidData, sw: 0)
   
   let transportResult = card.transport.send(

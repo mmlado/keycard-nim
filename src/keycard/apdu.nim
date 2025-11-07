@@ -2,6 +2,7 @@
 ## Idiomatic Nim style with default parameters
 import pcsc/util as putil
 
+import constants
 import util
 
 type
@@ -44,8 +45,8 @@ proc toBytes*(a: Apdu): seq[byte] =
 proc encodeLv*(data: openArray[byte]): seq[byte] =
   ## Encode data in Length-Value format
   ## Length is a single byte, so max 255 bytes
-  if data.len > 255:
-    raise newException(ValueError, "LV encoding limited to 255 bytes")
+  if data.len > MaxApduDataLength:
+    raise newException(ValueError, "LV encoding limited to " & $MaxApduDataLength & " bytes")
   result = @[byte(data.len)]
   result.add @data
 

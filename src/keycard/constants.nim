@@ -93,6 +93,23 @@ const
   PairingPbkdf2Iterations* = 50000   # PBKDF2 iterations for pairing token
   DerIntegerMaxSize* = 33            # Max DER integer encoding (32 + sign byte)
 
+  # APDU limits
+  MaxApduDataLength* = 255   # Maximum data length for short APDU format
+  
+  # TLV Tags
+  TagSignatureTemplate* = 0xA0'u8    # Signature template
+  TagKeypairTemplate* = 0xA1'u8      # Keypair template  
+  TagTlvPublicKey* = 0x80'u8         # Public key in TLV template
+  TagTlvPrivateKey* = 0x81'u8        # Private key in TLV template
+  TagTlvChainCode* = 0x82'u8         # Chain code in TLV template
+  TagDerSequence* = 0x30'u8          # DER SEQUENCE tag
+  
+  # ISO/IEC 9797-1 Method 2 padding
+  IsoPaddingMarker* = 0x80'u8        # Padding marker byte
+  
+  # BIP32 constants
+  Bip32HardenedBit* = 0x8000_0000'u32  # Hardened derivation bit
+
 type
   # Capability flags (bitwise OR)
   Capability* = enum

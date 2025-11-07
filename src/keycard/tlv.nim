@@ -1,5 +1,7 @@
 ## BER-TLV parsing and encoding utilities
 
+import constants
+
 type
   TlvTag* = object
     tag*: byte
@@ -72,7 +74,7 @@ proc encodeTlv*(tag: byte, value: openArray[byte]): seq[byte] =
     # Long form: first byte has bit 7 set, bits 6-0 indicate number of length bytes
     # For lengths up to 255, we need 1 length byte
     # For lengths up to 65535, we need 2 length bytes
-    if length <= 255:
+    if length <= MaxApduDataLength:
       result.add(0x81'u8)  # 1 length byte follows
       result.add(byte(length))
     else:
@@ -97,14 +99,14 @@ proc encodeKeypairTemplate*(
 
   # Add public key if provided
   if publicKey.len > 0:
-    inner.add(encodeTlv(0x80, publicKey))
+    inner.add(encodeTlv(TagTlvPublicKey, publicKey))
 
   # Add private key (required)
-  inner.add(encodeTlv(0x81, privateKey))
+  inner.add(encodeTlv(TagTlvPrivateKey, privateKey))
 
   # Add chain code if provided (for extended keypair)
   if chainCode.len > 0:
-    inner.add(encodeTlv(0x82, chainCode))
+    inner.add(encodeTlv(TagTlvChainCode, chainCode))
 
   # Wrap in Tag 0xA1 template
-  result = encodeTlv(0xA1, inner)
+  result = encodeTlv(TagKeypairTemplate, inner)

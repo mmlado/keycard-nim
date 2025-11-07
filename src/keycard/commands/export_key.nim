@@ -140,7 +140,7 @@ proc exportKey*(
                           sw: secureResult.sw)
  
   let tags = parseTlv(secureResult.data)
-  let keypairTemplate = findTag(tags, 0xA1)
+  let keypairTemplate = findTag(tags, TagKeypairTemplate)
  
   if keypairTemplate.len == 0:
     return ExportKeyResult(success: false,
@@ -155,11 +155,11 @@ proc exportKey*(
  
   for tag in innerTags:
     case tag.tag
-    of 0x80:  # Public key
+    of TagTlvPublicKey:  # Public key
       publicKey = tag.value
-    of 0x81:  # Private key
+    of TagTlvPrivateKey:  # Private key
       privateKey = tag.value
-    of 0x82:  # Chain code
+    of TagTlvChainCode:  # Chain code
       chainCode = tag.value
     else:
       discard

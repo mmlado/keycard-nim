@@ -55,11 +55,11 @@ proc ident*(card: var Keycard; challenge: seq[byte] = @[]): IdentResult =
 
   # Generate random challenge if not provided
   let actualChallenge = if challenge.len == 0:
-    generateRandomBytes(32)
+    generateRandomBytes(Sha256Size)
   else:
     challenge
 
-  if actualChallenge.len != 32:
+  if actualChallenge.len != Sha256Size:
     return IdentResult(success: false,
                       error: IdentInvalidFormat,
                       sw: 0)
@@ -92,7 +92,7 @@ proc ident*(card: var Keycard; challenge: seq[byte] = @[]): IdentResult =
 
   # Parse TLV response
   let outerTags = parseTlv(resp.data)
-  let signatureTemplate = findTag(outerTags, 0xA0)
+  let signatureTemplate = findTag(outerTags, TagSignatureTemplate)
 
   if signatureTemplate.len == 0:
     return IdentResult(success: false,
@@ -102,9 +102,9 @@ proc ident*(card: var Keycard; challenge: seq[byte] = @[]): IdentResult =
   # Parse inner TLV (inside 0xA0)
   let innerTags = parseTlv(signatureTemplate)
   let certificate = findTag(innerTags, 0x8A)
-  let signature = findTag(innerTags, 0x30)
+  let signature = findTag(innerTags, TagDerSequence)
 
-  if certificate.len < 95 or signature.len < 65:
+  if certificate.len < (Secp256k1UncompressedSize + Sha256Size) or signature.len < Secp256k1UncompressedSize:
     return IdentResult(success: false,
                       error: IdentInvalidResponse,
                       sw: resp.sw)

@@ -58,7 +58,7 @@ proc pair*(card: var Keycard;
   let sharedSecret = generatePairingToken(pairingPassword)
 
   # Step 1: Send client challenge
-  let clientChallenge = generateRandomBytes(32)
+  let clientChallenge = generateRandomBytes(Sha256Size)
 
   let step1Result = card.transport.send(
     ins = InsPair,
@@ -96,13 +96,13 @@ proc pair*(card: var Keycard;
                      error: PairFailed,
                      sw: step1Resp.sw)
 
-  if step1Resp.data.len != 64:
+  if step1Resp.data.len != (Sha256Size * 2):
     return PairResult(success: false,
                      error: PairInvalidResponse,
                      sw: step1Resp.sw)
 
-  let cardCryptogram = step1Resp.data[0..<32]
-  let cardChallenge = step1Resp.data[32..<64]
+  let cardCryptogram = step1Resp.data[0..<Sha256Size]
+  let cardChallenge = step1Resp.data[Sha256Size..<(Sha256Size * 2)]
 
   var expectedCardCryptogram: seq[byte] = @[]
   expectedCardCryptogram.add(sharedSecret)

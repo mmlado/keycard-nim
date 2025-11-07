@@ -5,9 +5,10 @@ import nimcrypto
 import nimcrypto/[bcmode, rijndael, sysrand, pbkdf2, hash]
 import secp256k1
 import secp256k1/abi
+import ../constants
 
 proc ecdhRawHashFunc(output: pointer, x32: pointer, y32: pointer, data: pointer): cint {.cdecl, noSideEffect, gcsafe.} =
-  copyMem(output, x32, 32)
+  copyMem(output, x32, Secp256k1CoordinateSize)
   return 1
 
 proc generateEcdhKeypair*(): tuple[privateKey: seq[byte], publicKey: seq[byte]] =
@@ -15,12 +16,12 @@ proc generateEcdhKeypair*(): tuple[privateKey: seq[byte], publicKey: seq[byte]] 
   ## Returns (private_key, uncompressed_public_key)
   
   # Generate random 32 bytes for private key
-  var privateKeyBytes = newSeq[byte](32)
-  if randomBytes(privateKeyBytes) != 32:
+  var privateKeyBytes = newSeq[byte](Secp256k1PrivateKeySize)
+  if randomBytes(privateKeyBytes) != Secp256k1PrivateKeySize:
     raise newException(OSError, "Failed to generate random bytes")
   
-  var skArray: array[32, byte]
-  for i in 0..<32:
+  var skArray: array[Secp256k1PrivateKeySize, byte]
+  for i in 0..<Secp256k1PrivateKeySize:
     skArray[i] = privateKeyBytes[i]
   
   let skResult = SkSecretKey.fromRaw(skArray)
@@ -42,11 +43,11 @@ proc ecdhKeypairFromHex*(privateKeyHex: string): tuple[privateKey: seq[byte], pu
   # Parse hex string to bytes
   let privateKeyBytes = parseHexStr(privateKeyHex)
   
-  if privateKeyBytes.len != 32:
-    raise newException(ValueError, "Private key must be 32 bytes (64 hex chars)")
+  if privateKeyBytes.len != Secp256k1PrivateKeySize:
+    raise newException(ValueError, "Private key must be " & $Secp256k1PrivateKeySize & " bytes (64 hex chars)")
   
-  var skArray: array[32, byte]
-  for i in 0..<32:
+  var skArray: array[Secp256k1PrivateKeySize, byte]
+  for i in 0..<Secp256k1PrivateKeySize:
     skArray[i] = cast[seq[byte]](privateKeyBytes)[i]
   
   let skResult = SkSecretKey.fromRaw(skArray)
@@ -70,15 +71,15 @@ proc ecdhSharedSecret*(privateKey: seq[byte], cardPublicKey: seq[byte]): seq[byt
   ## by default applies SHA-1 hashing to the shared point's x-coordinate.
   ## We need to match that behavior for compatibility.
   
-  var skArray: array[32, byte]
-  for i in 0..<32:
+  var skArray: array[Secp256k1PrivateKeySize, byte]
+  for i in 0..<Secp256k1PrivateKeySize:
     skArray[i] = privateKey[i]
   
   let sk = SkSecretKey.fromRaw(skArray).get()
   let pk = SkPublicKey.fromRaw(cardPublicKey).get()
   
   let hashFunc = cast[SkEcdhHashFunc](ecdhRawHashFunc)
-  let ecdhResultOpt = ecdh[32](sk, pk, hashFunc, nil)
+  let ecdhResultOpt = ecdh[Secp256k1CoordinateSize](sk, pk, hashFunc, nil)
   
   if ecdhResultOpt.isErr:
     raise newException(ValueError, "ECDH computation failed")
@@ -93,27 +94,28 @@ proc aesCbcEncrypt*(key: seq[byte], iv: seq[byte], plaintext: seq[byte]): seq[by
   ## - Pad with 0x00 until block size (16 bytes)
   
   # Validate key and IV lengths
-  if key.len != 32:
-    raise newException(ValueError, "AES-256 requires a 32-byte key, got " & $key.len & " bytes")
-  if iv.len != 16:
-    raise newException(ValueError, "AES CBC requires a 16-byte IV, got " & $iv.len & " bytes")
+  if key.len != AesKeySize:
+    raise newException(ValueError, "AES-256 requires a " & $AesKeySize & "-byte key, got " & $key.len & " bytes")
+
+  if iv.len != AesBlockSize:
+    raise newException(ValueError, "AES CBC requires a " & $AesBlockSize & "-byte IV, got " & $iv.len & " bytes")
   
   var paddedData = plaintext
-  paddedData.add(0x80'u8)
+  paddedData.add(IsoPaddingMarker)
   
   # Pad to block size (16 bytes)
-  while paddedData.len mod 16 != 0:
+  while paddedData.len mod AesBlockSize != 0:
     paddedData.add(0x00'u8)
   
   # Setup AES context
   var ctx: CBC[aes256]
-  var keyArray: array[32, byte]
-  var ivArray: array[16, byte]
+  var keyArray: array[AesKeySize, byte]
+  var ivArray: array[AesBlockSize, byte]
   
   # Copy key and IV to fixed-size arrays
-  for i in 0..<32:
+  for i in 0..<AesKeySize:
     keyArray[i] = key[i]
-  for i in 0..<16:
+  for i in 0..<AesBlockSize:
     ivArray[i] = iv[i]
   
   # Initialize CBC mode
@@ -130,20 +132,20 @@ proc aesCbcDecrypt*(key: seq[byte], iv: seq[byte], ciphertext: seq[byte]): seq[b
   ## Decrypt data using AES-256-CBC and remove ISO/IEC 9797-1 Method 2 padding
   
   # Validate key and IV lengths
-  if key.len != 32:
-    raise newException(ValueError, "AES-256 requires a 32-byte key, got " & $key.len & " bytes")
-  if iv.len != 16:
-    raise newException(ValueError, "AES CBC requires a 16-byte IV, got " & $iv.len & " bytes")
+  if key.len != AesKeySize:
+    raise newException(ValueError, "AES-256 requires a " & $AesKeySize & "-byte key, got " & $key.len & " bytes")
+  if iv.len != AesBlockSize:
+    raise newException(ValueError, "AES CBC requires a " & $AesBlockSize & "-byte IV, got " & $iv.len & " bytes")
   
   # Setup AES context
   var ctx: CBC[aes256]
-  var keyArray: array[32, byte]
-  var ivArray: array[16, byte]
+  var keyArray: array[AesKeySize, byte]
+  var ivArray: array[AesBlockSize, byte]
   
   # Copy key and IV to fixed-size arrays
-  for i in 0..<32:
+  for i in 0..<AesKeySize:
     keyArray[i] = key[i]
-  for i in 0..<16:
+  for i in 0..<AesBlockSize:
     ivArray[i] = iv[i]
   
   # Initialize CBC mode
@@ -157,12 +159,13 @@ proc aesCbcDecrypt*(key: seq[byte], iv: seq[byte], ciphertext: seq[byte]): seq[b
   # Remove ISO/IEC 9797-1 Method 2 padding
   # Find 0x80 from the end and remove it and everything after
   for i in countdown(output.len - 1, 0):
-    if output[i] == 0x80:
+    if output[i] == IsoPaddingMarker:
       result = output[0..<i]
       return
   
   # If no padding found, this indicates corrupted data or decryption failure
-  raise newException(ValueError, "Invalid padding: no 0x80 marker found in decrypted data")
+  raise newException(ValueError, "Invalid padding: no " & $IsoPaddingMarker.toHex() & " marker found in decrypted data")
+
 
 proc generateRandomBytes*(n: int): seq[byte] =
   ## Generate n random bytes using cryptographically secure RNG
@@ -181,14 +184,12 @@ proc generatePairingToken*(secret: string): seq[byte] =
   ## - Output length: 32 bytes
 
   const salt = "Keycard Pairing Password Salt"
-  const iterations = 50000
-  const dklen = 32
 
   var ctx: HMAC[sha256]
-  var output: array[dklen, byte]
+  var output: array[Sha256Size, byte]
 
   # PBKDF2 using SHA256
-  discard pbkdf2(ctx, secret, salt, iterations, output)
+  discard pbkdf2(ctx, secret, salt, PairingPbkdf2Iterations, output)
 
   result = @output
 
@@ -212,29 +213,29 @@ proc aesCbcMac*(key: seq[byte], data: seq[byte], padding: bool = false): seq[byt
   ##   padding: Whether to apply ISO/IEC 9797-1 Method 2 padding (default: false)
 
   # Validate key length
-  if key.len != 32:
-    raise newException(ValueError, "AES-256 requires a 32-byte key, got " & $key.len & " bytes")
+  if key.len != AesKeySize:
+    raise newException(ValueError, "AES-256 requires a " & $AesKeySize & "-byte key, got " & $key.len & " bytes")
 
   var inputData = data
   
   # Optionally add ISO/IEC 9797-1 Method 2 padding
   if padding:
-    inputData.add(0x80'u8)
+    inputData.add(IsoPaddingMarker)
     # Pad to block size (16 bytes)
-    while inputData.len mod 16 != 0:
+    while inputData.len mod AesBlockSize != 0:
       inputData.add(0x00'u8)
 
   # Setup AES context with zero IV
   var ctx: CBC[aes256]
-  var keyArray: array[32, byte]
-  var ivArray: array[16, byte]  # Zero IV
+  var keyArray: array[AesKeySize, byte]
+  var ivArray: array[AesBlockSize, byte]
 
   # Copy key to fixed-size array
-  for i in 0..<32:
+  for i in 0..<AesKeySize:
     keyArray[i] = key[i]
 
   # Initialize with zero IV
-  for i in 0..<16:
+  for i in 0..<AesBlockSize:
     ivArray[i] = 0
 
   # Initialize CBC mode
@@ -246,7 +247,7 @@ proc aesCbcMac*(key: seq[byte], data: seq[byte], padding: bool = false): seq[byt
   ctx.clear()
 
   # Return last 16 bytes (last block)
-  result = output[^16..^1]
+  result = output[^AesMacSize..^1]
 
 proc deriveSessionKeys*(sharedSecret: seq[byte], pairingKey: seq[byte], salt: seq[byte]): tuple[encKey: seq[byte], macKey: seq[byte]] =
   ## Derive encryption and MAC keys for secure channel
@@ -261,5 +262,5 @@ proc deriveSessionKeys*(sharedSecret: seq[byte], pairingKey: seq[byte], salt: se
 
   let hash = sha512Hash(combined)
 
-  result.encKey = hash[0..<32]
-  result.macKey = hash[32..<64]
+  result.encKey = hash[0..<Sha256Size]
+  result.macKey = hash[Sha256Size..<(Sha256Size * 2)]

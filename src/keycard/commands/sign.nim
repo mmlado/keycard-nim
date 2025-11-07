@@ -94,14 +94,14 @@ proc parseEcdsaSignature(derEncoded: seq[byte]): seq[byte] =
   while sValue.len > 0 and sValue[0] == 0:
     sValue = sValue[1 .. ^1]
 
-  if rValue.len == 0 or rValue.len > 32:
+  if rValue.len == 0 or rValue.len > Secp256k1CoordinateSize:
     return @[]
-  if sValue.len == 0 or sValue.len > 32:
+  if sValue.len == 0 or sValue.len > Secp256k1CoordinateSize:
     return @[]
 
-  while rValue.len < 32:
+  while rValue.len < Secp256k1CoordinateSize:
     rValue = @[byte(0)] & rValue
-  while sValue.len < 32:
+  while sValue.len < Secp256k1CoordinateSize:
     sValue = @[byte(0)] & sValue
 
   result = rValue & sValue
@@ -141,7 +141,7 @@ proc sign*(
   ## Note: If signature template format is returned, recovery ID must be calculated
   ## by trying values 0-3 and checking if recovered public key matches
 
-  if hash.len != 32:
+  if hash.len != Sha256Size:
     return SignResult(success: false,
                     error: SignDataTooShort,
                     sw: SwWrongData)
@@ -214,13 +214,13 @@ proc sign*(
 
   let tags = parseTlv(secureResult.data)
 
-  let rawSig = findTag(tags, 0x80)
+  let rawSig = findTag(tags, TagTlvPublicKey)
   if rawSig.len > 0:
     return SignResult(success: true,
                      signature: rawSig,
                      publicKey: @[])
 
-  let sigTemplate = findTag(tags, 0xA0)
+  let sigTemplate = findTag(tags, TagSignatureTemplate)
   if sigTemplate.len > 0:
     let innerTags = parseTlv(sigTemplate)
 
@@ -229,9 +229,9 @@ proc sign*(
 
     for tag in innerTags:
       case tag.tag
-      of 0x80:  # Public key
+      of TagTlvPublicKey:  # Public key
         publicKey = tag.value
-      of 0x30:  # ECDSA signature (DER encoded)
+      of TagDerSequence:  # ECDSA signature (DER encoded)
         signature = parseEcdsaSignature(tag.value)
       else:
         discard

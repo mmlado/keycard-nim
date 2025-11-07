@@ -58,7 +58,7 @@ proc mutuallyAuthenticate*(card: var Keycard): MutuallyAuthenticateResult =
                                       error: MutuallyAuthenticateChannelNotOpen,
                                       sw: 0)
 
-  let clientChallenge = generateRandomBytes(32)
+  let clientChallenge = generateRandomBytes(Sha256Size)
 
   let encryptedChallenge = aesCbcEncrypt(card.secureChannel.encryptionKey,
                                          card.secureChannel.iv,
@@ -69,7 +69,7 @@ proc mutuallyAuthenticate*(card: var Keycard): MutuallyAuthenticateResult =
   macInput.add(InsMutuallyAuthenticate)
   macInput.add(0x00)  # P1
   macInput.add(0x00)  # P2
-  macInput.add(byte(encryptedChallenge.len + 16))
+  macInput.add(byte(encryptedChallenge.len + AesMacSize))
 
   for i in 0..<11:
     macInput.add(0x00)
@@ -115,14 +115,14 @@ proc mutuallyAuthenticate*(card: var Keycard): MutuallyAuthenticateResult =
                                       error: MutuallyAuthenticateFailed,
                                       sw: mutualAuthResp.sw)
 
-  if mutualAuthResp.data.len < 16:
+  if mutualAuthResp.data.len < AesMacSize:
     card.secureChannel.open = false
     return MutuallyAuthenticateResult(success: false,
                                       error: MutuallyAuthenticateInvalidResponse,
                                       sw: mutualAuthResp.sw)
 
-  let receivedMac = mutualAuthResp.data[0..<16]
-  let encryptedResponse = mutualAuthResp.data[16..^1]
+  let receivedMac = mutualAuthResp.data[0..<AesMacSize]
+  let encryptedResponse = mutualAuthResp.data[AesMacSize..^1]
 
   var responseMacInput: seq[byte] = @[]
   responseMacInput.add(byte(mutualAuthResp.data.len))

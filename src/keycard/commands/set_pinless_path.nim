@@ -37,7 +37,7 @@ type
 
 const
   MaxPathComponents = 10
-  HardenedBit = 0x8000_0000'u32
+  HardenedBit = Bip32HardenedBit
 
 proc isAllDigits(s: string): bool =
   ## Check if all characters in string are digits

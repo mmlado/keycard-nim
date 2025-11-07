@@ -41,7 +41,7 @@ proc encryptApdu*(card: var Keycard;
   macInput.add(ins)
   macInput.add(p1)
   macInput.add(p2)
-  macInput.add(byte(encrypted.len + 16))
+  macInput.add(byte(encrypted.len + AesMacSize))
 
   for i in 0..<11:
     macInput.add(0x00)
@@ -59,11 +59,11 @@ proc encryptApdu*(card: var Keycard;
 proc decryptResponse*(card: var Keycard; response: seq[byte]): SecureApduResult =
   ## Decrypt R-APDU response from secure channel
 
-  if response.len < 16:
+  if response.len < AesMacSize:
     return SecureApduResult(success: false, error: SecureApduInvalidMac)
 
-  let receivedMac = response[0..<16]
-  let encryptedData = response[16..^1]
+  let receivedMac = response[0..<AesMacSize]
+  let encryptedData = response[AesMacSize..^1]
 
   var macInput: seq[byte] = @[]
   macInput.add(byte(response.len))

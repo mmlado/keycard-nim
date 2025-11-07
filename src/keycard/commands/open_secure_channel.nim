@@ -56,7 +56,7 @@ proc openSecureChannel*(card: var Keycard;
                                    error: OpenSecureChannelNotSelected,
                                    sw: 0)
 
-  if pairingKey.len != 32:
+  if pairingKey.len != Sha256Size:
     return OpenSecureChannelResult(success: false,
                                    error: OpenSecureChannelInvalidData,
                                    sw: 0)
@@ -97,8 +97,8 @@ proc openSecureChannel*(card: var Keycard;
                                    error: OpenSecureChannelInvalidResponse,
                                    sw: resp.sw)
 
-  let salt = resp.data[0..<32]
-  let iv = resp.data[32..<48]
+  let salt = resp.data[0..<Sha256Size]
+  let iv = resp.data[Sha256Size..<(Sha256Size + AesBlockSize)]
 
   let sharedSecret = ecdhSharedSecret(clientPrivate, card.publicKey)
 
