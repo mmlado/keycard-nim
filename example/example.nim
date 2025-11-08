@@ -34,6 +34,23 @@ const
   PUK = "234567890123"
   PAIRING_PASSWORD = "KeycardTest"
 
+template checkResult(result: untyped, operation: string) =
+  ## Check if result is successful, exit with error if not
+  if not result.success:
+    echo operation, " failed: ", result.error
+    when compiles(result.sw):
+      if result.sw != 0:
+        echo "  Status word: 0x", result.sw.toHex(4)
+    when compiles(result.retriesRemaining):
+      echo "  Retries remaining: ", result.retriesRemaining
+    quit(1)
+
+proc printSectionHeader(title: string) =
+  ## Print a section header with separators
+  echo "\n========================================"
+  echo title
+  echo "========================================"
+ 
 proc selectCard(card: var Keycard): bool =
   ## Select the Keycard applet and display info
   ## Returns true on success, false on failure
@@ -83,64 +100,46 @@ proc main() =
     return
   
   # Get public data (before secure channel)
-  echo "\nGetting public data (before secure channel)..."
+  printSectionHeader("GET DATA DEMO")
   let getResult = card.getData(PublicData)
+  checkResult(getResult, "Get data")
 
-  if getResult.success:
-    echo "Retrieved ", getResult.data.len, " bytes of public data"
-    if getResult.data.len > 0:
-      echo "Data: ", getResult.data.prettyHex()
-  else:
-    echo "Get data failed: ", getResult.error
-    if getResult.sw != 0:
-      echo "  Status word: 0x", getResult.sw.toHex(4)
-    # Continue anyway
+  echo "Retrieved ", getResult.data.len, " bytes of public data"
+  if getResult.data.len > 0:
+    echo "Data: ", getResult.data.prettyHex()
 
-  # Identify the card (before init/pairing)
-  echo "\nIdentifying card..."
+  printSectionHeader("IDENTIFY CARD DEMO")
   let identResult = card.ident()
+  checkResult(identResult, "Card identification")
 
-  if identResult.success:
-    echo "Card identified successfully!"
-    echo "Public key: ", identResult.publicKey.prettyHex()
-    echo "Certificate length: ", identResult.certificate.len, " bytes"
-    echo "Signature length: ", identResult.signature.len, " bytes"
-  else:
-    echo "Card identification failed: ", identResult.error
-    if identResult.sw != 0:
-      echo "  Status word: 0x", identResult.sw.toHex(4)
-    # Continue anyway - identification is optional
+  echo "Card identified successfully!"
+  echo "Public key: ", identResult.publicKey.prettyHex()
+  echo "Certificate length: ", identResult.certificate.len, " bytes"
+  echo "Signature length: ", identResult.signature.len, " bytes"
   
   # Reset if already initialized
   if  card.isInitialized():
+    printSectionHeader("RESET CARD DEMO")
     echo "\nCard is already initialized"
     echo "Resetting card..."
-    
+
     let resetResult = card.reset()
-    if not resetResult.success:
-      echo "Reset failed SW: 0x", resetResult.sw.toHex(4)
-      return
-    
+    checkResult(resetResult, "Reset")
+
     echo "Card reset successfully\n"
     
     # Select again after reset (card state is cleared by reset)
     if not card.selectCard():
       return
 
-  # Initialize the card
-  echo "\nInitializing card..."
+  printSectionHeader("INITIALIZE CARD DEMO")
 
   let initResult = card.init(
     pin = PIN,
     puk = PUK,
     pairingSecret = PAIRING_PASSWORD
   )
-
-  if not initResult.success:
-    echo "Initialization failed: ", initResult.error
-    if initResult.sw != 0:
-      echo "  Status word: 0x", initResult.sw.toHex(4)
-    return
+  checkResult(initResult, "Initialization")
 
   echo "Card initialized successfully\n"
 
@@ -157,32 +156,21 @@ proc main() =
   echo "\nCard supports secure channel"
 
   # Pair with the card (two-step mutual authentication)
-  echo "\nPairing with card..."
+  printSectionHeader("PAIR DEMO")
 
   let pairResult = card.pair(PAIRING_PASSWORD)
-
-  if not pairResult.success:
-    echo "Failed to pair: ", pairResult.error
-    if pairResult.sw != 0:
-      echo "  Status word: 0x", pairResult.sw.toHex(4)
-    return
+  checkResult(pairResult, "Pairing")
 
   echo "Pairing successful!"
   echo "Assigned pairing index: ", pairResult.pairingIndex
   echo "Pairing key: ", pairResult.pairingKey.prettyHex()
   echo "Salt: ", pairResult.salt.prettyHex()
 
-  # Open secure channel
-  echo "\nOpening secure channel..."
+  printSectionHeader("OPEN SECURE CHANNEL DEMO")
   echo "Using pairing index: ", pairResult.pairingIndex
 
   let openResult = card.openSecureChannel(pairResult.pairingIndex, pairResult.pairingKey)
-
-  if not openResult.success:
-    echo "Failed to open secure channel: ", openResult.error
-    if openResult.sw != 0:
-      echo "  Status word: 0x", openResult.sw.toHex(4)
-    return
+  checkResult(openResult, "Open secure channel")
 
   echo "Secure channel opened successfully!"
   echo "Salt: ", openResult.salt.prettyHex()
@@ -194,84 +182,35 @@ proc main() =
   echo "  All subsequent commands can be encrypted"
   echo "  Channel remains open until card is deselected or reset"
 
-  # Get application status
-  echo "\nGetting application status..."
+  printSectionHeader("GET STATUS DEMO")
   let statusResult = card.getStatus()
+  checkResult(statusResult, "Get status")
 
-  if statusResult.success:
-    echo "Application status retrieved successfully!"
-    echo "PIN retry count: ", statusResult.appStatus.pinRetryCount
-    echo "PUK retry count: ", statusResult.appStatus.pukRetryCount
-    echo "Key initialized: ", statusResult.appStatus.keyInitialized
-  else:
-    echo "Get status failed: ", statusResult.error
-    if statusResult.sw != 0:
-      echo "  Status word: 0x", statusResult.sw.toHex(4)
-    # Continue anyway
+  echo "Application status retrieved successfully!"
+  echo "PIN retry count: ", statusResult.appStatus.pinRetryCount
+  echo "PUK retry count: ", statusResult.appStatus.pukRetryCount
+  echo "Key initialized: ", statusResult.appStatus.keyInitialized
   
-  # Verify PIN
-  echo "\nVerifying PIN..."
+  printSectionHeader("VERIFY PIN DEMO")
 
   let verifyResult = card.verifyPin(PIN)
+  checkResult(verifyResult, "Verify PIN")
 
-  if verifyResult.success:
-    echo "PIN verified successfully!"
-    echo "PIN is now authenticated for this session"
-    echo "Session remains authenticated until card is deselected or reset"
-  else:
-    echo "PIN verification failed: ", verifyResult.error
-    if verifyResult.sw != 0:
-      echo "  Status word: 0x", verifyResult.sw.toHex(4)
-
-    case verifyResult.error
-    of VerifyPinBlocked:
-      echo "  PIN is BLOCKED! Use PUK to unblock"
-    of VerifyPinIncorrect:
-      echo "  Wrong PIN! Retries remaining: ", verifyResult.retriesRemaining
-    of VerifyPinChannelNotOpen:
-      echo "  Secure channel is not open"
-    of VerifyPinSecureApduError:
-      echo "  Secure APDU encryption/MAC error"
-    of VerifyPinTransportError:
-      echo "  Transport/connection error"
-    else:
-      discard
-    return
+  echo "PIN verified successfully!"
+  echo "PIN is now authenticated for this session"
+  echo "Session remains authenticated until card is deselected or reset"
   
-  # Change PIN (demonstrate CHANGE PIN command)
+  printSectionHeader("CHANGE PIN DEMO")
   echo "\nChanging PIN from ", PIN, " to ", NEW_PIN, "..."
 
   let changePinResult = card.changePin(UserPin, NEW_PIN)
+  checkResult(changePinResult, "Change PIN")
 
-  if changePinResult.success:
-    echo "PIN changed successfully!"
-    echo "New PIN is now authenticated for this session"
-    echo "Note: In production, you'd use the new PIN for future sessions"
-  else:
-    echo "Change PIN failed: ", changePinResult.error
-    if changePinResult.sw != 0:
-      echo "  Status word: 0x", changePinResult.sw.toHex(4)
+  echo "PIN changed successfully!"
+  echo "New PIN is now authenticated for this session"
+  echo "Note: In production, you'd use the new PIN for future sessions"
 
-    case changePinResult.error
-    of ChangePinInvalidFormat:
-      echo "  (Invalid PIN format - must be 6 digits)"
-    of ChangePinInvalidP1:
-      echo "  (Invalid PIN type)"
-    of ChangePinCapabilityNotSupported:
-      echo "  (Card does not support credentials management)"
-    of ChangePinConditionsNotMet:
-      echo "  (Conditions not met - PIN must be verified)"
-    of ChangePinChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of ChangePinSecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of ChangePinTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    # Continue anyway
-
-  # Demonstrate PIN blocking and unblocking
+  printSectionHeader("PIN BLOCKING AND UNBLOCKING DEMO")
   echo "\nDemonstrating PIN blocking by attempting to verify with old PIN..."
   echo "Attempting to verify with old PIN (", PIN, ") - should fail 3 times to block PIN"
 
@@ -292,144 +231,51 @@ proc main() =
   # Now unblock with PUK
   echo "\nUnblocking PIN with PUK and setting it back to original..."
   let unblockResult = card.unblockPin(PUK, PIN)
+  checkResult(unblockResult, "Unblock PIN")
 
-  if unblockResult.success:
-    echo "PIN unblocked successfully!"
-    echo "PIN has been reset to ", PIN, " and is now authenticated for this session"
-  else:
-    echo "Unblock PIN failed: ", unblockResult.error
-    if unblockResult.sw != 0:
-      echo "  Status word: 0x", unblockResult.sw.toHex(4)
-
-    case unblockResult.error
-    of UnblockPinWrongPuk:
-      echo "  (Wrong PUK! Retries remaining: ", unblockResult.retriesRemaining, ")"
-    of UnblockPinBlocked:
-      echo "  (PUK is blocked! Wallet is lost)"
-    of UnblockPinInvalidFormat:
-      echo "  (Invalid format - PUK must be 12 digits, PIN must be 6 digits)"
-    of UnblockPinCapabilityNotSupported:
-      echo "  (Card does not support credentials management)"
-    of UnblockPinChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of UnblockPinSecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of UnblockPinTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    return
+  echo "PIN unblocked successfully!"
+  echo "PIN has been reset to ", PIN, " and is now authenticated for this session"
 
   # Note: PIN is now back to original value via unblock
   
-  # Generate key on card (demonstrate GENERATE KEY command)
-  echo "\nGenerating key on card..."
+  printSectionHeader("GENERATE KEY DEMO")
   let generateResult = card.generateKey()
+  checkResult(generateResult, "Generate key")
 
-  if generateResult.success:
-    echo "Key generated successfully!"
-    echo "Key UID (SHA-256 of public key): ", generateResult.keyUID.prettyHex()
-    echo "Note: The card state is now the same as if LOAD KEY was performed"
-  else:
-    echo "Generate key failed: ", generateResult.error
-    if generateResult.sw != 0:
-      echo "  Status word: 0x", generateResult.sw.toHex(4)
-
-    case generateResult.error
-    of GenerateKeyCapabilityNotSupported:
-      echo "  (Card does not support key management)"
-    of GenerateKeyConditionsNotMet:
-      echo "  (Conditions not met - PIN must be verified)"
-    of GenerateKeyChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of GenerateKeySecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of GenerateKeyTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    return
+  echo "Key generated successfully!"
+  echo "Key UID (SHA-256 of public key): ", generateResult.keyUID.prettyHex()
+  echo "Note: The card state is now the same as if LOAD KEY was performed"
 
   # Generate a mnemonic (demonstrate GENERATE MNEMONIC command)
-  echo "\n========================================"
-  echo "GENERATE MNEMONIC DEMO"
-  echo "========================================"
+  printSectionHeader("GENERATE MNEMONIC DEMO")
   echo "\nGenerating a BIP39 mnemonic (12 words)..."
 
   let mnemonicResult = card.generateMnemonic(checksumSize = 4)
+  checkResult(mnemonicResult, "Generate mnemonic")
 
-  if mnemonicResult.success:
-    echo "Mnemonic generated successfully!"
-    echo "Number of words: ", mnemonicResult.indexes.len
-    echo "Word indexes (0-2047): ", mnemonicResult.indexes
-    echo ""
-    echo "Note: These are word indexes (0-2047) for the BIP39 wordlist"
-    echo "      In a real application, you would convert these to actual words"
-    echo "      using the official BIP39 English wordlist"
-  else:
-    echo "Generate mnemonic failed: ", mnemonicResult.error
-    if mnemonicResult.sw != 0:
-      echo "  Status word: 0x", mnemonicResult.sw.toHex(4)
-
-    case mnemonicResult.error
-    of GenerateMnemonicCapabilityNotSupported:
-      echo "  (Card does not support key management)"
-    of GenerateMnemonicInvalidChecksumSize:
-      echo "  (Invalid checksum size - must be 4-8)"
-    of GenerateMnemonicChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of GenerateMnemonicSecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of GenerateMnemonicTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    # Continue anyway
+  echo "Mnemonic generated successfully!"
+  echo "Number of words: ", mnemonicResult.indexes.len
+  echo "Word indexes (0-2047): ", mnemonicResult.indexes
+  echo ""
+  echo "Note: These are word indexes (0-2047) for the BIP39 wordlist"
+  echo "      In a real application, you would convert these to actual words"
+  echo "      using the official BIP39 English wordlist"
 
   echo "\n========================================"
 
-  # Export the current key (demonstrate EXPORT KEY command)
-  echo "\nExporting current key (public key only)..."
+  printSectionHeader("EXPORT KEY DEMO")
   let exportResult = card.exportKey(CurrentKey, PublicOnly)
+  checkResult(exportResult, "Export key")
 
-  if exportResult.success:
-    echo "Key exported successfully!"
-    if exportResult.publicKey.len > 0:
-      echo "Public key (", exportResult.publicKey.len, " bytes): ", exportResult.publicKey.prettyHex()
-    if exportResult.privateKey.len > 0:
-      echo "Private key (", exportResult.privateKey.len, " bytes): [REDACTED]"
-    if exportResult.chainCode.len > 0:
-      echo "Chain code (", exportResult.chainCode.len, " bytes): ", exportResult.chainCode.prettyHex()
-  else:
-    echo "Export key failed: ", exportResult.error
-    if exportResult.sw != 0:
-      echo "  Status word: 0x", exportResult.sw.toHex(4)
+  echo "Key exported successfully!"
+  if exportResult.publicKey.len > 0:
+    echo "Public key (", exportResult.publicKey.len, " bytes): ", exportResult.publicKey.prettyHex()
+  if exportResult.privateKey.len > 0:
+    echo "Private key (", exportResult.privateKey.len, " bytes): [REDACTED]"
+  if exportResult.chainCode.len > 0:
+    echo "Chain code (", exportResult.chainCode.len, " bytes): ", exportResult.chainCode.prettyHex()
 
-    case exportResult.error
-    of ExportKeyCapabilityNotSupported:
-      echo "  (Card does not support key management)"
-    of ExportKeyPrivateNotExportable:
-      echo "  (Private key cannot be exported for this path)"
-    of ExportKeyInvalidPath:
-      echo "  (Path is malformed)"
-    of ExportKeyInvalidParams:
-      echo "  (Invalid P1 or P2 parameters)"
-    of ExportKeyConditionsNotMet:
-      echo "  (Conditions not met - PIN must be verified)"
-    of ExportKeyChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of ExportKeySecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of ExportKeyTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    # Continue anyway
-
-  # Sign some data and verify signature (demonstrate SIGN command)
-  echo "\n========================================"
-  echo "SIGNING AND VERIFICATION DEMO"
-  echo "========================================"
+  printSectionHeader("SIGNING AND VERIFICATION DEMO")
 
   # Create a message and hash it
   let message = "Hello, Keycard! This is a test message for signing."
@@ -450,130 +296,99 @@ proc main() =
   # Sign the hash with the current key
   echo "\nSigning with current key on card..."
   let signResult = card.sign(hash)
+  checkResult(signResult, "Sign")
 
-  if not signResult.success:
-    echo "Sign failed: ", signResult.error
-    if signResult.sw != 0:
-      echo "  Status word: 0x", signResult.sw.toHex(4)
+  echo "Signature created successfully!"
+  echo "Signature (", signResult.signature.len, " bytes): ", signResult.signature.prettyHex()
 
-    case signResult.error
-    of SignCapabilityNotSupported:
-      echo "  (Card does not support key management)"
-    of SignDataTooShort:
-      echo "  (Hash must be exactly 32 bytes)"
-    of SignNoPinlessPath:
-      echo "  (No PIN-less path defined)"
-    of SignAlgorithmNotSupported:
-      echo "  (Algorithm not supported - only ECDSA secp256k1 on Keycard)"
-    of SignConditionsNotMet:
-      echo "  (Conditions not met - PIN must be verified and key loaded)"
-    of SignChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of SignSecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of SignTransportError:
-      echo "  (Transport/connection error)"
+  # If we got the signature template format, we have the public key
+  if signResult.publicKey.len > 0:
+    echo "Public key from signature template: ", signResult.publicKey.prettyHex()
+
+  # Now export the public key to verify the signature
+  echo "\nExporting public key for verification..."
+  let verifyExportResult = card.exportKey(CurrentKey, PublicOnly)
+  checkResult(verifyExportResult, "Export key for verification")
+
+  if verifyExportResult.publicKey.len == 0:
+    echo "No public key returned from export"
+    quit(1)
+
+  echo "Public key exported (", verifyExportResult.publicKey.len, " bytes)"
+
+  # Verify the signature
+  echo "\nVerifying signature..."
+
+  try:
+    # Parse the signature
+    # If signature is 65 bytes, it includes recovery ID: (r, s, recId)
+    # If signature is 64 bytes, it's just (r, s)
+    var sigToVerify: seq[byte]
+    var pubKeyToUse: seq[byte] = verifyExportResult.publicKey
+
+    if signResult.signature.len == 65:
+      # Signature with recovery ID - extract just r and s for verification
+      sigToVerify = signResult.signature[0..63]
+      echo "Using 65-byte signature format (r, s, recId)"
+      echo "Recovery ID: ", signResult.signature[64]
+    elif signResult.signature.len == 64:
+      # Signature without recovery ID
+      sigToVerify = signResult.signature
+      echo "Using 64-byte signature format (r, s)"
     else:
-      discard
-    # Continue anyway - skip verification
-  else:
-    echo "Signature created successfully!"
-    echo "Signature (", signResult.signature.len, " bytes): ", signResult.signature.prettyHex()
+      echo "Unexpected signature length: ", signResult.signature.len
+      sigToVerify = signResult.signature
 
-    # If we got the signature template format, we have the public key
-    if signResult.publicKey.len > 0:
-      echo "Public key from signature template: ", signResult.publicKey.prettyHex()
+    # Verify using secp256k1
+    # Parse public key (assuming uncompressed format: 0x04 + X + Y)
+    if pubKeyToUse[0] == 0x04 and pubKeyToUse.len == 65:
+      # Uncompressed public key
+      let pubKeyResult = SkPublicKey.fromRaw(pubKeyToUse)
+      if pubKeyResult.isOk:
+        let pubKey = pubKeyResult.get()
 
-    # Now export the public key to verify the signature
-    echo "\nExporting public key for verification..."
-    let verifyExportResult = card.exportKey(CurrentKey, PublicOnly)
+        # Parse signature (64 bytes: r + s)
+        if sigToVerify.len == 64:
+          # Try to parse as raw signature
+          let sigResult = SkSignature.fromRaw(sigToVerify)
+          if sigResult.isOk:
+            let sig = sigResult.get()
 
-    if not verifyExportResult.success:
-      echo "Export key for verification failed: ", verifyExportResult.error
-      # Continue anyway
-    elif verifyExportResult.publicKey.len == 0:
-      echo "No public key returned from export"
-      # Continue anyway
-    else:
-      echo "Public key exported (", verifyExportResult.publicKey.len, " bytes)"
+            # Create message from hash
+            var hashArray: array[32, byte]
+            for i in 0..<32:
+              hashArray[i] = hash[i]
 
-      # Verify the signature
-      echo "\nVerifying signature..."
+            let msgResult = SkMessage.fromBytes(hashArray)
+            if msgResult.isOk:
+              let msg = msgResult.get()
 
-      try:
-        # Parse the signature
-        # If signature is 65 bytes, it includes recovery ID: (r, s, recId)
-        # If signature is 64 bytes, it's just (r, s)
-        var sigToVerify: seq[byte]
-        var pubKeyToUse: seq[byte] = verifyExportResult.publicKey
-
-        if signResult.signature.len == 65:
-          # Signature with recovery ID - extract just r and s for verification
-          sigToVerify = signResult.signature[0..63]
-          echo "Using 65-byte signature format (r, s, recId)"
-          echo "Recovery ID: ", signResult.signature[64]
-        elif signResult.signature.len == 64:
-          # Signature without recovery ID
-          sigToVerify = signResult.signature
-          echo "Using 64-byte signature format (r, s)"
-        else:
-          echo "Unexpected signature length: ", signResult.signature.len
-          sigToVerify = signResult.signature
-
-        # Verify using secp256k1
-        # Parse public key (assuming uncompressed format: 0x04 + X + Y)
-        if pubKeyToUse[0] == 0x04 and pubKeyToUse.len == 65:
-          # Uncompressed public key
-          let pubKeyResult = SkPublicKey.fromRaw(pubKeyToUse)
-          if pubKeyResult.isOk:
-            let pubKey = pubKeyResult.get()
- 
-            # Parse signature (64 bytes: r + s)
-            if sigToVerify.len == 64:
-              # Try to parse as raw signature
-              let sigResult = SkSignature.fromRaw(sigToVerify)
-              if sigResult.isOk:
-                let sig = sigResult.get()
- 
-                # Create message from hash
-                var hashArray: array[32, byte]
-                for i in 0..<32:
-                  hashArray[i] = hash[i]
- 
-                let msgResult = SkMessage.fromBytes(hashArray)
-                if msgResult.isOk:
-                  let msg = msgResult.get()
- 
-                  # Verify signature
-                  if verify(sig, msg, pubKey):
-                    echo "  SIGNATURE VERIFICATION SUCCESSFUL!"
-                    echo "  The signature is valid for the message"
-                    echo "  The key on the card correctly signed the hash"
-                  else:
-                    echo "  SIGNATURE VERIFICATION FAILED!"
-                    echo "  The signature is NOT valid for this message"
-                else:
-                  echo "Failed to create message from hash"
+              # Verify signature
+              if verify(sig, msg, pubKey):
+                echo "  SIGNATURE VERIFICATION SUCCESSFUL!"
+                echo "  The signature is valid for the message"
+                echo "  The key on the card correctly signed the hash"
               else:
-                echo "Failed to parse signature (raw format)"
+                echo "  SIGNATURE VERIFICATION FAILED!"
+                echo "  The signature is NOT valid for this message"
             else:
-              echo "Cannot verify: signature has unexpected length ", sigToVerify.len
+              echo "Failed to create message from hash"
           else:
-            echo "Failed to parse public key"
+            echo "Failed to parse signature (raw format)"
         else:
-          echo "Unexpected public key format (expected uncompressed 0x04 + 64 bytes)"
-          echo "Public key length: ", pubKeyToUse.len
-          if pubKeyToUse.len > 0:
-            echo "First byte: 0x", pubKeyToUse[0].toHex(2)
-      except Exception as e:
-        echo "Exception during verification: ", e.msg
-
-  echo "\n========================================"
+          echo "Cannot verify: signature has unexpected length ", sigToVerify.len
+      else:
+        echo "Failed to parse public key"
+    else:
+      echo "Unexpected public key format (expected uncompressed 0x04 + 64 bytes)"
+      echo "Public key length: ", pubKeyToUse.len
+      if pubKeyToUse.len > 0:
+        echo "First byte: 0x", pubKeyToUse[0].toHex(2)
+  except Exception as e:
+    echo "Exception during verification: ", e.msg
 
   # Set PIN-less path (demonstrate SET PINLESS PATH command)
-  echo "\n========================================"
-  echo "SET PINLESS PATH DEMO"
-  echo "========================================"
+  printSectionHeader("SET PINLESS PATH DEMO")
 
   # Set a PIN-less path that allows signing without PIN when current key matches
   let pinlessPath = "m/44'/60'/0'/0/0"
@@ -581,108 +396,41 @@ proc main() =
   echo "This allows signing without PIN verification when the current key matches this path"
 
   let setPinlessResult = card.setPinlessPath(pinlessPath)
+  checkResult(setPinlessResult, "Set PIN-less path")
 
-  if setPinlessResult.success:
-    echo "PIN-less path set successfully!"
-    echo "Note: Signing with SIGN command using SignPinlessPath derivation option"
-    echo "      will now work without PIN verification when on this path"
-  else:
-    echo "Set PIN-less path failed: ", setPinlessResult.error
-    if setPinlessResult.sw != 0:
-      echo "  Status word: 0x", setPinlessResult.sw.toHex(4)
-
-    case setPinlessResult.error
-    of SetPinlessPathInvalidData:
-      echo "  (Invalid path data)"
-    of SetPinlessPathConditionsNotMet:
-      echo "  (PIN must be verified)"
-    of SetPinlessPathChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of SetPinlessPathSecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of SetPinlessPathTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
+  echo "PIN-less path set successfully!"
+  echo "Note: Signing with SIGN command using SignPinlessPath derivation option"
+  echo "      will now work without PIN verification when on this path"
 
   # Demonstrate disabling PIN-less path
   echo "\nDisabling PIN-less path (setting to empty)..."
   let disablePinlessResult = card.setPinlessPath("")
+  checkResult(disablePinlessResult, "Disable PIN-less path")
 
-  if disablePinlessResult.success:
-    echo "PIN-less path disabled successfully!"
-    echo "Signing will now require PIN verification again"
-  else:
-    echo "Disable PIN-less path failed: ", disablePinlessResult.error
+  echo "PIN-less path disabled successfully!"
+  echo "Signing will now require PIN verification again"
 
-  echo "\n========================================"
-
-  # Store some data
-  echo "\nStoring public data..."
+  printSectionHeader("STORE DATA DEMO")
   let testString = "Hello Keycard!"
   var dataToStore: seq[byte] = @[]
   for c in testString:
     dataToStore.add(byte(c))
 
   let storeResult = card.storeData(PublicData, dataToStore)
+  checkResult(storeResult, "Store data")
 
-  if storeResult.success:
-    echo "Data stored successfully!"
-    echo "Stored ", dataToStore.len, " bytes of public data"
-  else:
-    echo "Store data failed: ", storeResult.error
-    if storeResult.sw != 0:
-      echo "  Status word: 0x", storeResult.sw.toHex(4)
+  echo "Data stored successfully!"
+  echo "Stored ", dataToStore.len, " bytes of public data"
 
-    case storeResult.error
-    of StoreDataTooLong:
-      echo "  (Data is too long)"
-    of StoreDataUndefinedP1:
-      echo "  (Undefined data type)"
-    of StoreDataCapabilityNotSupported:
-      echo "  (Card does not support this data type - NDEF capability required)"
-    of StoreDataSecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of StoreDataChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of StoreDataTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    # Continue anyway
-
-  # Remove key from card (demonstrate REMOVE KEY command)
-  echo "\nRemoving key from card..."
+  printSectionHeader("REMOVE KEY DEMO")
   let removeResult = card.removeKey()
- 
-  if removeResult.success:
-    echo "Key removed successfully!"
-    echo "Card is now in an uninitialized state"
-    echo "No signing operation is possible until a new LOAD KEY command"
-  else:
-    echo "Remove key failed: ", removeResult.error
-    if removeResult.sw != 0:
-      echo "  Status word: 0x", removeResult.sw.toHex(4)
- 
-    case removeResult.error
-    of RemoveKeyCapabilityNotSupported:
-      echo "  (Card does not support key management)"
-    of RemoveKeyConditionsNotMet:
-      echo "  (Conditions not met - PIN must be verified)"
-    of RemoveKeyChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of RemoveKeySecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of RemoveKeyTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    # Continue anyway
+  checkResult(removeResult, "Remove key")
 
-  # Load a key onto the card (demonstrate LOAD KEY command)
-  echo "\n========================================"
-  echo "LOAD KEY DEMO"
-  echo "========================================"
+  echo "Key removed successfully!"
+  echo "Card is now in an uninitialized state"
+  echo "No signing operation is possible until a new LOAD KEY command"
+
+  printSectionHeader("LOAD KEY DEMO")
   echo "\nLoading a keypair onto the card..."
   echo "Note: This is just a demo with a test key - never use this key in production!"
 
@@ -697,64 +445,20 @@ proc main() =
 
   # Load the keypair (public key can be omitted - card will derive it)
   let loadResult = card.loadKey(EccKeypair, testPrivateKey)
+  checkResult(loadResult, "Load key")
 
-  if loadResult.success:
-    echo "Key loaded successfully!"
-    echo "Key UID (SHA-256 of public key): ", loadResult.keyUID.prettyHex()
-    echo "The card can now perform signing operations with this key"
-  else:
-    echo "Load key failed: ", loadResult.error
-    if loadResult.sw != 0:
-      echo "  Status word: 0x", loadResult.sw.toHex(4)
+  echo "Key loaded successfully!"
+  echo "Key UID (SHA-256 of public key): ", loadResult.keyUID.prettyHex()
+  echo "The card can now perform signing operations with this key"
 
-    case loadResult.error
-    of LoadKeyCapabilityNotSupported:
-      echo "  (Card does not support key management)"
-    of LoadKeyInvalidFormat:
-      echo "  (Invalid key format)"
-    of LoadKeyInvalidKeyType:
-      echo "  (Invalid key type - P1 parameter)"
-    of LoadKeyConditionsNotMet:
-      echo "  (Conditions not met - PIN must be verified)"
-    of LoadKeyChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of LoadKeySecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of LoadKeyTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    # Continue anyway
-
-  echo "\n========================================"
-
-  # Unpair the pairing slot
+  printSectionHeader("UNPAIR DEMO")
   echo "\nUnpairing slot ", pairResult.pairingIndex, "..."
 
   let unpairResult = card.unpair(pairResult.pairingIndex)
+  checkResult(unpairResult, "Unpair")
 
-  if unpairResult.success:
-    echo "Unpaired successfully!"
-    echo "Pairing slot ", pairResult.pairingIndex, " is now free"
-  else:
-    echo "Unpair failed: ", unpairResult.error
-    if unpairResult.sw != 0:
-      echo "  Status word: 0x", unpairResult.sw.toHex(4)
-
-    case unpairResult.error
-    of UnpairSecurityConditionsNotMet:
-      echo "  (Security conditions not met)"
-    of UnpairInvalidIndex:
-      echo "  (Invalid pairing index)"
-    of UnpairSecureApduError:
-      echo "  (Secure APDU encryption/MAC error)"
-    of UnpairChannelNotOpen:
-      echo "  (Secure channel is not open)"
-    of UnpairTransportError:
-      echo "  (Transport/connection error)"
-    else:
-      discard
-    return
+  echo "Unpaired successfully!"
+  echo "Pairing slot ", pairResult.pairingIndex, " is now free"
 
   echo "\nAll operations completed successfully!"
 
