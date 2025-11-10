@@ -2,6 +2,8 @@
 
 A Nim SDK to interact with the [Status Keycard](https://keycard.tech) - a hardware wallet implementation on JavaCard.
 
+[Documentation](https://deepwiki.com/mmlado/keycard-nim)
+
 ## Installation
 
 ```bash
